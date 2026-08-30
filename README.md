@@ -56,8 +56,9 @@ FitSync/
 │   │   └── default-avatar.svg
 │   ├── css/style.css           # Full design system with CSS variables
 │   ├── js/
-│   │   ├── config.js           # Runtime config (API origin for split deploys)
+│   │   ├── config.js           # Runtime config (API origin; demo-mode switch)
 │   │   ├── api.js              # All API calls + shared utilities
+│   │   ├── demo-mode.js        # In-browser backend for the no-server demo
 │   │   └── layout.js          # Sidebar, header, theme, Socket.IO
 │   ├── pages/
 │   │   ├── login.html          register.html
@@ -150,16 +151,31 @@ http://localhost:5000
 | **Admin** | admin@fitsync.com | Admin@123 |
 | **Demo** | demo@fitsync.com | Demo@123 |
 
-New users can register at `/pages/register.html`.
+In **demo mode** login is optional — any email/password works, and deep links
+open straight to the app. These credentials matter only when a real backend is
+connected. New users can register at `/pages/register.html`.
 
 ---
 
 ## ☁️ Deployment
 
-> **Important:** Netlify hosts static sites only — it cannot run the Express /
-> Socket.IO / MongoDB backend. You have two options.
+### Option 0 — Static only (no backend) ✅ live demo
 
-### Option A — Everything on Render (simplest)
+FitSync ships with a **demo mode**: if no API URL is configured, the whole app
+runs in the browser — no login wall, demo data stored in `localStorage`
+(`client/js/demo-mode.js` mirrors the Express API). Every screen works:
+dashboard, workouts, nutrition, goals, profile, and the admin panel.
+
+Just deploy `client/` as a static site:
+
+1. **Netlify** → *Add new site* → *Import from Git* → pick this repo.
+   `netlify.toml` sets `publish = "client"`; no build command.
+2. That's it — open the URL, it drops you straight into the dashboard.
+
+To switch to the real backend later, set an API origin (Option A/B below) and
+demo mode turns itself off.
+
+### Option A — Everything on Render (full-stack, one service)
 
 The Node server already serves the frontend from `client/`, so one service runs the whole app.
 
@@ -172,7 +188,7 @@ The Node server already serves the frontend from `client/`, so one service runs 
    - `SEED_ON_START` → `true` for the first deploy (seeds admin + demo + exercises), then remove it.
 5. Visit the Render URL. Done.
 
-### Option B — Frontend on Netlify + Backend on Render (what you asked for)
+### Option B — Frontend on Netlify + Backend on Render (split full-stack)
 
 1. Deploy the backend to Render as in **Option A** (steps 1–4). Note its URL,
    e.g. `https://fitsync-api.onrender.com`.

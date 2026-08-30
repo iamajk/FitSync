@@ -65,7 +65,7 @@ function renderLayout(activePage, pageTitle, pageSubtitle = '') {
           <li class="nav-item">
             <a href="/pages/admin.html" class="${activePage === 'admin' ? 'active' : ''}">
               <span class="nav-icon">⚙️</span> Admin Panel
-              <span class="nav-badge">${user.role === 'admin' ? 'Admin' : 'View'}</span>
+              <span class="nav-badge">${user.role === 'admin' || window.FITSYNC_DEMO ? 'Admin' : 'View'}</span>
             </a>
           </li>
         </ul>
@@ -159,6 +159,12 @@ function closeSidebar() {
 
 // ── Socket.IO Init ────────────────────────────────────
 function initSocket(userId) {
+  // Demo mode has no server — show a friendly status and skip the socket.
+  if (window.FITSYNC_DEMO) {
+    const el = document.getElementById('socketStatus');
+    if (el) el.innerHTML = '<span style="font-size:0.75rem;color:var(--text-muted);">🎭 Demo</span>';
+    return;
+  }
   if (typeof io === 'undefined') return;
 
   const origin = (window.FITSYNC_CONFIG && window.FITSYNC_CONFIG.socketOrigin) || '';

@@ -280,10 +280,19 @@
     <p style="margin-top: 0.5rem; font-size: 0.8rem;">DBMS University Project</p>
   </footer>
 
+  <script src="/js/config.js"></script>
   <script>
     // Redirect to dashboard if already logged in
     if (localStorage.getItem('fitsync_token')) {
       window.location.href = '/pages/dashboard.html';
+    }
+    // In demo mode there's no sign-up step — send the CTAs straight in.
+    if (window.FITSYNC_DEMO) {
+      document.querySelectorAll('a[href="/pages/register.html"], a[href="/pages/login.html"]')
+        .forEach(function (a) {
+          a.href = '/pages/dashboard.html';
+          if (/Get Started|Start For Free/.test(a.textContent)) a.textContent = 'Open the Live Demo →';
+        });
     }
   </script>
 </body>

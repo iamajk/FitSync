@@ -3,23 +3,29 @@
 // ============================================
 // Load this BEFORE api.js and layout.js on every page.
 //
-// Same-origin deploy (one server serves API + frontend, e.g. Render web service):
-//   leave both values empty — requests go to the current origin.
+// DEMO MODE (default): if no API origin is configured, FitSync runs
+// entirely in the browser — no login wall, demo data stored in
+// localStorage. See js/demo-mode.js.
 //
-// Split deploy (frontend on Netlify, API on Render/Railway/etc.):
-//   set API_ORIGIN to the API server's base URL, e.g.
-//   "https://fitsync-api.onrender.com"
-//
-// You can override at deploy time without editing this file by defining
-// window.FITSYNC_API_ORIGIN before this script runs (e.g. via a Netlify snippet).
+// REAL BACKEND: set an API origin and the app talks to the live
+// Express/MongoDB server instead. Either:
+//   • edit API_ORIGIN below, or
+//   • define window.FITSYNC_API_ORIGIN before this script runs.
+// Same-origin deploy (one server serves API + frontend): use "" — but
+// then demo mode is off and a backend must be reachable at /api.
 
 (function () {
-  const API_ORIGIN = window.FITSYNC_API_ORIGIN || ''; // e.g. "https://fitsync-api.onrender.com"
+  // ↓↓↓ set this to your API URL to use the real backend, e.g.
+  //     "https://fitsync-api.onrender.com"
+  const API_ORIGIN = window.FITSYNC_API_ORIGIN || '';
+
+  // Demo mode is on whenever no API origin is set.
+  const DEMO = !API_ORIGIN;
 
   window.FITSYNC_CONFIG = {
-    // Base URL for REST calls. "" → same origin.
+    demo: DEMO,
     apiBase: (API_ORIGIN ? API_ORIGIN.replace(/\/$/, '') : '') + '/api',
-    // Origin for the Socket.IO connection. "" → same origin (io() with no args).
     socketOrigin: API_ORIGIN ? API_ORIGIN.replace(/\/$/, '') : '',
   };
+  window.FITSYNC_DEMO = DEMO;
 })();

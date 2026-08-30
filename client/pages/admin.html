@@ -290,12 +290,14 @@
 
   <script src="/js/config.js"></script>
   <script src="/js/api.js"></script>
+  <script src="/js/demo-mode.js"></script>
   <script src="/js/layout.js"></script>
   <script>
     // Any logged-in user may view this page; write actions are gated below.
     requireAuth();
     const currentUser = getCurrentUser();
-    const isAdmin = !!currentUser && currentUser.role === 'admin';
+    // In demo mode everything is local fake data, so all actions are unlocked.
+    const isAdmin = window.FITSYNC_DEMO || (!!currentUser && currentUser.role === 'admin');
     renderLayout('admin', 'Admin Panel', 'Platform management');
 
     // Non-admins get a read-only experience
@@ -555,6 +557,11 @@
 
     /* ── Socket: active users ── */
     function initActiveUsers() {
+      if (window.FITSYNC_DEMO) {
+        const el = document.getElementById('active-count');
+        if (el) el.textContent = '1';
+        return;
+      }
       if (typeof io === 'undefined') return;
       // Reuse the socket opened by layout.js if available
       const origin = (window.FITSYNC_CONFIG && window.FITSYNC_CONFIG.socketOrigin) || '';
