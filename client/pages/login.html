@@ -90,6 +90,36 @@
       display: none;
     }
     .error-msg.show { display: block; animation: fadeIn 0.3s ease; }
+    .demo-row { display: flex; gap: 0.75rem; }
+    .demo-row .btn { flex: 1; }
+    .demo-creds {
+      margin-top: 0.9rem;
+      border: 1px dashed var(--border-color);
+      border-radius: var(--radius-sm);
+      padding: 0.75rem 0.9rem;
+      font-size: 0.8rem;
+    }
+    .demo-creds .dc-title {
+      color: var(--text-muted);
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      font-size: 0.7rem;
+      margin-bottom: 0.4rem;
+    }
+    .demo-creds button {
+      display: flex;
+      justify-content: space-between;
+      width: 100%;
+      gap: 0.5rem;
+      padding: 0.35rem 0;
+      color: var(--text-secondary);
+      font-size: 0.8rem;
+      text-align: left;
+    }
+    .demo-creds button:hover { color: var(--primary-light); }
+    .demo-creds button span:first-child { font-weight: 600; }
+    .demo-creds .dc-hint { color: var(--text-muted); font-size: 0.72rem; margin-top: 0.35rem; }
   </style>
 </head>
 <body>
@@ -126,11 +156,23 @@
         </button>
       </form>
 
-      <div class="divider">or try demo</div>
+      <div class="divider">or explore with a demo account</div>
 
-      <button class="btn btn-secondary btn-full" id="demoBtn">
-        🧪 Login as Demo User
-      </button>
+      <div class="demo-row">
+        <button class="btn btn-secondary" id="demoUserBtn">🧪 Demo User</button>
+        <button class="btn btn-secondary" id="demoAdminBtn">⭐ Demo Admin</button>
+      </div>
+
+      <div class="demo-creds">
+        <div class="dc-title">Demo credentials — click to fill</div>
+        <button type="button" data-email="demo@fitsync.com" data-pass="Demo@123">
+          <span>👤 User</span><span>demo@fitsync.com · Demo@123</span>
+        </button>
+        <button type="button" data-email="admin@fitsync.com" data-pass="Admin@123">
+          <span>⭐ Admin</span><span>admin@fitsync.com · Admin@123</span>
+        </button>
+        <div class="dc-hint">The Admin account unlocks user management &amp; the exercise-library editor. Any account can open the Admin Panel in read-only mode from the sidebar.</div>
+      </div>
 
       <div class="auth-footer">
         Don't have an account? <a href="/pages/register.html">Sign up free</a>
@@ -184,22 +226,48 @@
       }
     });
 
-    // Demo login — signs in with the seeded demo account
-    document.getElementById('demoBtn').addEventListener('click', async () => {
-      const demoBtn = document.getElementById('demoBtn');
+    // ── Quick demo login ──────────────────────────────
+    const emailInput = document.getElementById('email');
+    const passInput = document.getElementById('password');
+
+    async function quickLogin(email, password, btn, label) {
       errorMsg.classList.remove('show');
-      demoBtn.disabled = true;
-      demoBtn.textContent = 'Logging in...';
+      // Visibly fill the form so it's clear which account is being used
+      emailInput.value = email;
+      passInput.value = password;
+      const original = btn.textContent;
+      btn.disabled = true;
+      btn.textContent = 'Logging in...';
       try {
-        const data = await API.Auth.login({ email: 'demo@fitsync.com', password: 'Demo@123' });
+        const data = await API.Auth.login({ email, password });
         saveAuth(data.token, data.user);
-        showToast('Welcome to the FitSync demo!', 'success');
-        setTimeout(() => { window.location.href = '/pages/dashboard.html'; }, 500);
+        showToast(`Signed in as ${label}`, 'success');
+        setTimeout(() => {
+          window.location.href = data.user.role === 'admin'
+            ? '/pages/admin.html'
+            : '/pages/dashboard.html';
+        }, 500);
       } catch (err) {
-        showError('Demo account not available yet. Run "npm run seed" on the server.');
-        demoBtn.disabled = false;
-        demoBtn.textContent = '🧪 Login as Demo User';
+        showError('Demo accounts not available yet — run "npm run seed" on the server.');
+        btn.disabled = false;
+        btn.textContent = original;
       }
+    }
+
+    document.getElementById('demoUserBtn').addEventListener('click', function () {
+      quickLogin('demo@fitsync.com', 'Demo@123', this, 'Demo User');
+    });
+    document.getElementById('demoAdminBtn').addEventListener('click', function () {
+      quickLogin('admin@fitsync.com', 'Admin@123', this, 'Admin');
+    });
+
+    // Click a credentials row to fill the form (without submitting)
+    document.querySelectorAll('.demo-creds button').forEach((row) => {
+      row.addEventListener('click', () => {
+        emailInput.value = row.dataset.email;
+        passInput.value = row.dataset.pass;
+        emailInput.focus();
+      });
     });
   </script>
 </body>
