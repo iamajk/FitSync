@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>FitSync — Smart Fitness Tracking</title>
+  <link rel="stylesheet" href="/css/style.css" />
+  <style>
+    body { background: var(--bg-primary); overflow-x: hidden; }
+
+    /* ── Hero Section ─── */
+    .hero {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      padding: 2rem;
+      text-align: center;
+      background: radial-gradient(ellipse at 50% 50%, rgba(99,102,241,0.15) 0%, transparent 70%),
+                  radial-gradient(ellipse at 80% 20%, rgba(6,182,212,0.1) 0%, transparent 50%),
+                  var(--bg-primary);
+    }
+    .hero-content { max-width: 800px; z-index: 1; animation: fadeInUp 0.8s ease; }
+    .hero-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      background: rgba(99,102,241,0.15);
+      border: 1px solid rgba(99,102,241,0.3);
+      color: var(--primary-light);
+      padding: 0.4rem 1rem;
+      border-radius: 20px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      margin-bottom: 2rem;
+    }
+    .hero h1 {
+      font-size: clamp(2.5rem, 6vw, 5rem);
+      font-weight: 900;
+      line-height: 1.1;
+      margin-bottom: 1.5rem;
+      background: linear-gradient(135deg, #fff 30%, var(--primary-light) 70%, var(--secondary));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .hero p {
+      font-size: 1.2rem;
+      color: var(--text-secondary);
+      margin-bottom: 2.5rem;
+      max-width: 600px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+    .hero-buttons { display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap; }
+
+    /* ── Floating orbs ─── */
+    .orb {
+      position: fixed;
+      border-radius: 50%;
+      filter: blur(80px);
+      opacity: 0.15;
+      pointer-events: none;
+      z-index: 0;
+    }
+    .orb-1 { width: 400px; height: 400px; background: var(--primary); top: -100px; right: -100px; animation: float 8s ease-in-out infinite; }
+    .orb-2 { width: 300px; height: 300px; background: var(--secondary); bottom: 10%; left: -50px; animation: float 10s ease-in-out infinite reverse; }
+    @keyframes float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-30px); } }
+
+    /* ── Features ─── */
+    .features { padding: 6rem 2rem; }
+    .features-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 1.5rem;
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+    .feature-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius);
+      padding: 2rem;
+      transition: var(--transition);
+      position: relative;
+      overflow: hidden;
+    }
+    .feature-card::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(135deg, var(--card-color, var(--primary)), transparent);
+      opacity: 0;
+      transition: opacity 0.3s;
+    }
+    .feature-card:hover::before { opacity: 0.05; }
+    .feature-card:hover { transform: translateY(-5px); border-color: var(--primary); }
+    .feature-icon { font-size: 2.5rem; margin-bottom: 1rem; }
+    .feature-card h3 { font-size: 1.2rem; margin-bottom: 0.75rem; }
+    .feature-card p { color: var(--text-secondary); font-size: 0.9rem; line-height: 1.7; }
+
+    /* ── Stats Banner ─── */
+    .stats-banner {
+      background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+      padding: 4rem 2rem;
+      text-align: center;
+    }
+    .stats-banner-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 2rem;
+      max-width: 900px;
+      margin: 0 auto;
+    }
+    .banner-stat-value { font-size: 2.5rem; font-weight: 900; color: white; }
+    .banner-stat-label { color: rgba(255,255,255,0.7); font-size: 0.9rem; font-weight: 500; }
+
+    /* ── Navbar ─── */
+    .landing-nav {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      z-index: 100;
+      padding: 1rem 2rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      backdrop-filter: blur(20px);
+      border-bottom: 1px solid var(--border-color);
+      background: rgba(15,15,26,0.8);
+    }
+    .nav-logo {
+      font-size: 1.5rem;
+      font-weight: 800;
+      background: linear-gradient(135deg, var(--primary-light), var(--secondary));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .nav-links { display: flex; gap: 2rem; align-items: center; }
+    .nav-links a { color: var(--text-secondary); font-weight: 500; transition: var(--transition); }
+    .nav-links a:hover { color: var(--text-primary); }
+
+    /* Sections */
+    .section-label {
+      text-align: center;
+      font-size: 0.85rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--primary-light);
+      margin-bottom: 1rem;
+    }
+    .section-title {
+      text-align: center;
+      font-size: clamp(1.8rem, 4vw, 2.5rem);
+      font-weight: 800;
+      margin-bottom: 1rem;
+    }
+    .section-subtitle {
+      text-align: center;
+      color: var(--text-secondary);
+      font-size: 1rem;
+      max-width: 500px;
+      margin: 0 auto 3rem;
+    }
+
+    footer {
+      background: var(--bg-secondary);
+      border-top: 1px solid var(--border-color);
+      text-align: center;
+      padding: 2rem;
+      color: var(--text-muted);
+      font-size: 0.9rem;
+    }
+  </style>
+</head>
+<body>
+  <!-- Floating Orbs -->
+  <div class="orb orb-1"></div>
+  <div class="orb orb-2"></div>
+
+  <!-- Navbar -->
+  <nav class="landing-nav">
+    <div class="nav-logo">🏋️ FitSync</div>
+    <div class="nav-links">
+      <a href="#features">Features</a>
+      <a href="#about">About</a>
+      <a href="/pages/login.html" class="btn btn-secondary btn-sm">Log In</a>
+      <a href="/pages/register.html" class="btn btn-primary btn-sm">Get Started</a>
+    </div>
+  </nav>
+
+  <!-- Hero Section -->
+  <section class="hero" style="padding-top: 100px;">
+    <div class="hero-content">
+      <div class="hero-badge">🚀 Smart Fitness Tracking Platform</div>
+      <h1>Track. Train.<br/>Transform.</h1>
+      <p>FitSync is your all-in-one fitness companion. Log workouts, track nutrition, monitor progress, and hit your goals — all powered by real-time analytics.</p>
+      <div class="hero-buttons">
+        <a href="/pages/register.html" class="btn btn-primary btn-lg">Start For Free 💪</a>
+        <a href="/pages/login.html" class="btn btn-secondary btn-lg">Log In →</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- Stats Banner -->
+  <div class="stats-banner">
+    <div class="stats-banner-grid">
+      <div>
+        <div class="banner-stat-value">15+</div>
+        <div class="banner-stat-label">Exercise Library</div>
+      </div>
+      <div>
+        <div class="banner-stat-value">8</div>
+        <div class="banner-stat-label">Analytics Charts</div>
+      </div>
+      <div>
+        <div class="banner-stat-value">100%</div>
+        <div class="banner-stat-label">Free to Use</div>
+      </div>
+      <div>
+        <div class="banner-stat-value">24/7</div>
+        <div class="banner-stat-label">Real-time Tracking</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Features Section -->
+  <section class="features" id="features">
+    <div class="section-label">Everything you need</div>
+    <h2 class="section-title">Packed with Powerful Features</h2>
+    <p class="section-subtitle">From workout logging to nutrition tracking — FitSync covers every aspect of your fitness journey.</p>
+    <div class="features-grid">
+      <div class="feature-card" style="--card-color: #6366f1;">
+        <div class="feature-icon">🏋️</div>
+        <h3>Workout Tracking</h3>
+        <p>Log exercises with sets, reps, weight and duration. Categorize by muscle group and track calories burned.</p>
+      </div>
+      <div class="feature-card" style="--card-color: #06b6d4;">
+        <div class="feature-icon">🥗</div>
+        <h3>Nutrition Logger</h3>
+        <p>Track your daily meals with detailed macronutrient breakdowns. Monitor calories, protein, carbs and fats.</p>
+      </div>
+      <div class="feature-card" style="--card-color: #22c55e;">
+        <div class="feature-icon">📊</div>
+        <h3>Progress Analytics</h3>
+        <p>Visualize your fitness journey with interactive charts. Weight trends, calorie history, BMI tracking and more.</p>
+      </div>
+      <div class="feature-card" style="--card-color: #f59e0b;">
+        <div class="feature-icon">🎯</div>
+        <h3>Goal Setting</h3>
+        <p>Set weight loss, muscle gain or endurance goals. Track progress percentages and stay motivated.</p>
+      </div>
+      <div class="feature-card" style="--card-color: #ec4899;">
+        <div class="feature-icon">📚</div>
+        <h3>Exercise Library</h3>
+        <p>Browse hundreds of exercises with instructions, muscle groups, difficulty levels and calorie estimates.</p>
+      </div>
+      <div class="feature-card" style="--card-color: #8b5cf6;">
+        <div class="feature-icon">⚡</div>
+        <h3>Real-Time Updates</h3>
+        <p>Live dashboard updates and notifications powered by Socket.IO for an always-current view of your fitness data.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- CTA -->
+  <section style="padding: 5rem 2rem; text-align: center; background: var(--bg-secondary);" id="about">
+    <div style="max-width: 600px; margin: 0 auto;">
+      <h2 style="font-size: 2rem; margin-bottom: 1rem;">Ready to Start Your Journey?</h2>
+      <p style="color: var(--text-secondary); margin-bottom: 2rem;">Join FitSync today and take control of your fitness with data-driven insights.</p>
+      <a href="/pages/register.html" class="btn btn-primary btn-lg">Create Free Account →</a>
+    </div>
+  </section>
+
+  <footer>
+    <p>🏋️ <strong>FitSync</strong> — Smart Fitness Tracking & Workout Management System</p>
+    <p style="margin-top: 0.5rem;">Built with Node.js, Express, MongoDB Atlas & Vanilla JS</p>
+    <p style="margin-top: 0.5rem; font-size: 0.8rem;">DBMS University Project</p>
+  </footer>
+
+  <script>
+    // Redirect to dashboard if already logged in
+    if (localStorage.getItem('fitsync_token')) {
+      window.location.href = '/pages/dashboard.html';
+    }
+  </script>
+</body>
+</html>

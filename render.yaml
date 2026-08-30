@@ -1,0 +1,30 @@
+# ─────────────────────────────────────────────────────────────
+# Render blueprint — deploys the FitSync backend (Express API + Socket.IO)
+#
+# This one service can ALSO serve the frontend (it already serves
+# client/ statically), so you can run the whole app here without
+# Netlify if you prefer. If you split (frontend on Netlify), set
+# CLIENT_URL below to your Netlify origin for CORS.
+#
+# Usage: push to GitHub, then in Render → New → Blueprint → pick this repo.
+# ─────────────────────────────────────────────────────────────
+
+services:
+  - type: web
+    name: fitsync-api
+    runtime: node
+    plan: free
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: JWT_EXPIRE
+        value: 7d
+      - key: JWT_SECRET
+        generateValue: true
+      - key: MONGO_URI
+        sync: false   # set this in the Render dashboard (MongoDB Atlas URI)
+      - key: CLIENT_URL
+        sync: false   # e.g. https://your-site.netlify.app  (or your Render URL)

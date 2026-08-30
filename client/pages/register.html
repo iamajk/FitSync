@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Register — FitSync</title>
+  <link rel="stylesheet" href="/css/style.css" />
+  <style>
+    body {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 2rem;
+      background: radial-gradient(ellipse at 70% 30%, rgba(99,102,241,0.2) 0%, transparent 60%),
+                  var(--bg-primary);
+    }
+    .auth-container { width: 100%; max-width: 520px; animation: fadeInUp 0.5s ease; }
+    .auth-logo { text-align: center; margin-bottom: 2rem; }
+    .logo-icon-big {
+      width: 64px; height: 64px;
+      border-radius: 18px;
+      background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.8rem; margin: 0 auto 1rem;
+    }
+    .auth-logo h1 {
+      font-size: 2rem; font-weight: 900;
+      background: linear-gradient(135deg, var(--primary-light), var(--secondary));
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+    }
+    .auth-card {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-lg);
+      padding: 2rem;
+      box-shadow: 0 24px 80px rgba(0,0,0,0.4);
+    }
+    .auth-card h2 { font-size: 1.4rem; margin-bottom: 0.25rem; }
+    .auth-card .subtitle { color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 1.75rem; }
+    .error-msg {
+      background: rgba(239,68,68,0.1);
+      border: 1px solid rgba(239,68,68,0.3);
+      color: #ef4444;
+      padding: 0.75rem 1rem;
+      border-radius: var(--radius-sm);
+      font-size: 0.85rem;
+      margin-bottom: 1rem;
+      display: none;
+    }
+    .error-msg.show { display: block; }
+    .auth-footer { text-align: center; margin-top: 1.5rem; color: var(--text-secondary); font-size: 0.9rem; }
+    .auth-footer a { color: var(--primary-light); font-weight: 600; }
+    .step-indicator {
+      display: flex;
+      gap: 0.5rem;
+      margin-bottom: 1.75rem;
+    }
+    .step {
+      flex: 1;
+      height: 4px;
+      background: var(--border-color);
+      border-radius: 2px;
+      transition: background 0.3s;
+    }
+    .step.active { background: var(--primary); }
+    .step.done { background: var(--success); }
+    .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+    .goal-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.75rem;
+      margin-top: 0.5rem;
+    }
+    .goal-option input[type="radio"] { display: none; }
+    .goal-option label {
+      display: block;
+      padding: 0.875rem;
+      border: 2px solid var(--border-color);
+      border-radius: var(--radius-sm);
+      text-align: center;
+      cursor: pointer;
+      transition: var(--transition);
+      font-size: 0.85rem;
+      font-weight: 600;
+    }
+    .goal-option input:checked + label {
+      border-color: var(--primary);
+      background: rgba(99,102,241,0.1);
+      color: var(--primary-light);
+    }
+    .goal-option label:hover { border-color: var(--primary); }
+  </style>
+</head>
+<body>
+  <div class="auth-container">
+    <div class="auth-logo">
+      <div class="logo-icon-big">🏋️</div>
+      <h1>FitSync</h1>
+      <p>Create your account to start tracking</p>
+    </div>
+
+    <div class="auth-card">
+      <h2>Create Account 🚀</h2>
+      <p class="subtitle">Join thousands of fitness enthusiasts</p>
+
+      <!-- Step indicator -->
+      <div class="step-indicator">
+        <div class="step active" id="step1"></div>
+        <div class="step" id="step2"></div>
+        <div class="step" id="step3"></div>
+      </div>
+
+      <div class="error-msg" id="errorMsg"></div>
+
+      <form id="registerForm">
+        <!-- Step 1: Account Info -->
+        <div id="formStep1">
+          <div class="form-group">
+            <label>Username</label>
+            <input type="text" id="username" class="form-control" placeholder="johndoe" required minlength="3" />
+          </div>
+          <div class="form-group">
+            <label>Email Address</label>
+            <input type="email" id="email" class="form-control" placeholder="you@example.com" required />
+          </div>
+          <div class="form-group">
+            <label>Password</label>
+            <input type="password" id="password" class="form-control" placeholder="At least 6 characters" required minlength="6" />
+          </div>
+          <button type="button" class="btn btn-primary btn-full" id="nextBtn1">Next: Body Stats →</button>
+        </div>
+
+        <!-- Step 2: Body Stats -->
+        <div id="formStep2" style="display:none;">
+          <div class="form-row">
+            <div class="form-group">
+              <label>Age</label>
+              <input type="number" id="age" class="form-control" placeholder="25" min="10" max="100" />
+            </div>
+            <div class="form-group">
+              <label>Weight (kg)</label>
+              <input type="number" id="weight" class="form-control" placeholder="70" min="20" step="0.1" />
+            </div>
+          </div>
+          <div class="form-group">
+            <label>Height (cm)</label>
+            <input type="number" id="height" class="form-control" placeholder="175" min="50" max="300" />
+          </div>
+          <!-- Live BMI Preview -->
+          <div id="bmiPreview" style="background: var(--bg-card); border: 1px solid var(--border-color); border-radius: var(--radius-sm); padding: 1rem; margin-bottom: 1rem; display:none;">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <span style="color:var(--text-secondary); font-size:0.85rem;">Your BMI</span>
+              <span id="bmiValue" style="font-size:1.3rem; font-weight:800;"></span>
+            </div>
+            <div style="font-size:0.8rem; color:var(--text-muted); margin-top:0.25rem;" id="bmiCategory"></div>
+          </div>
+          <div style="display:flex; gap:0.75rem;">
+            <button type="button" class="btn btn-secondary" id="backBtn1">← Back</button>
+            <button type="button" class="btn btn-primary" style="flex:1;" id="nextBtn2">Next: Fitness Goal →</button>
+          </div>
+        </div>
+
+        <!-- Step 3: Goal -->
+        <div id="formStep3" style="display:none;">
+          <div class="form-group">
+            <label>What is your primary fitness goal?</label>
+            <div class="goal-grid">
+              <div class="goal-option">
+                <input type="radio" name="goal" id="goal_wl" value="weight_loss" />
+                <label for="goal_wl">⚖️ Weight Loss</label>
+              </div>
+              <div class="goal-option">
+                <input type="radio" name="goal" id="goal_mg" value="muscle_gain" checked />
+                <label for="goal_mg">💪 Muscle Gain</label>
+              </div>
+              <div class="goal-option">
+                <input type="radio" name="goal" id="goal_ma" value="maintenance" />
+                <label for="goal_ma">⚖️ Maintenance</label>
+              </div>
+              <div class="goal-option">
+                <input type="radio" name="goal" id="goal_en" value="endurance" />
+                <label for="goal_en">🏃 Endurance</label>
+              </div>
+            </div>
+          </div>
+          <div style="display:flex; gap:0.75rem; margin-top:0.5rem;">
+            <button type="button" class="btn btn-secondary" id="backBtn2">← Back</button>
+            <button type="submit" class="btn btn-primary" style="flex:1;" id="registerBtn">
+              🚀 Create Account
+            </button>
+          </div>
+        </div>
+      </form>
+
+      <div class="auth-footer">
+        Already have an account? <a href="/pages/login.html">Log in</a>
+      </div>
+    </div>
+  </div>
+
+  <script src="/js/config.js"></script>
+  <script src="/js/api.js"></script>
+  <script>
+    if (localStorage.getItem('fitsync_token')) {
+      window.location.href = '/pages/dashboard.html';
+    }
+
+    const errorMsg = document.getElementById('errorMsg');
+    const showError = (msg) => { errorMsg.textContent = msg; errorMsg.classList.add('show'); };
+    const hideError = () => errorMsg.classList.remove('show');
+
+    const goToStep = (step) => {
+      document.querySelectorAll('[id^="formStep"]').forEach(el => el.style.display = 'none');
+      document.getElementById(`formStep${step}`).style.display = 'block';
+      document.querySelectorAll('.step').forEach((s, i) => {
+        s.classList.toggle('active', i + 1 === step);
+        s.classList.toggle('done', i + 1 < step);
+      });
+      hideError();
+    };
+
+    // Step 1 → 2
+    document.getElementById('nextBtn1').addEventListener('click', () => {
+      const u = document.getElementById('username').value.trim();
+      const e = document.getElementById('email').value.trim();
+      const p = document.getElementById('password').value;
+      if (!u || u.length < 3) return showError('Username must be at least 3 characters');
+      if (!e) return showError('Email is required');
+      if (!p || p.length < 6) return showError('Password must be at least 6 characters');
+      goToStep(2);
+    });
+
+    // Live BMI calculation
+    const calcBMIPreview = () => {
+      const w = parseFloat(document.getElementById('weight').value);
+      const h = parseFloat(document.getElementById('height').value);
+      if (w && h) {
+        const bmi = (w / ((h / 100) ** 2)).toFixed(1);
+        const preview = document.getElementById('bmiPreview');
+        const bmiEl = document.getElementById('bmiValue');
+        const catEl = document.getElementById('bmiCategory');
+        preview.style.display = 'block';
+        bmiEl.textContent = bmi;
+        let cat, color;
+        if (bmi < 18.5) { cat = 'Underweight'; color = '#3b82f6'; }
+        else if (bmi < 25) { cat = 'Normal weight ✅'; color = '#22c55e'; }
+        else if (bmi < 30) { cat = 'Overweight'; color = '#f59e0b'; }
+        else { cat = 'Obese'; color = '#ef4444'; }
+        bmiEl.style.color = color;
+        catEl.textContent = cat;
+      }
+    };
+    ['weight', 'height'].forEach(id => document.getElementById(id).addEventListener('input', calcBMIPreview));
+
+    // Navigation
+    document.getElementById('backBtn1').addEventListener('click', () => goToStep(1));
+    document.getElementById('nextBtn2').addEventListener('click', () => goToStep(3));
+    document.getElementById('backBtn2').addEventListener('click', () => goToStep(2));
+
+    // Submit
+    document.getElementById('registerForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      hideError();
+      const btn = document.getElementById('registerBtn');
+      btn.disabled = true;
+      btn.textContent = 'Creating account...';
+
+      try {
+        const goal = document.querySelector('input[name="goal"]:checked')?.value || 'muscle_gain';
+        const data = await API.Auth.register({
+          username: document.getElementById('username').value.trim(),
+          email: document.getElementById('email').value.trim(),
+          password: document.getElementById('password').value,
+          age: parseInt(document.getElementById('age').value) || undefined,
+          weight: parseFloat(document.getElementById('weight').value) || undefined,
+          height: parseFloat(document.getElementById('height').value) || undefined,
+          goal,
+        });
+
+        saveAuth(data.token, data.user);
+        showToast('Account created successfully! 🎉', 'success');
+        setTimeout(() => { window.location.href = '/pages/dashboard.html'; }, 600);
+      } catch (err) {
+        showError(err.message);
+        btn.disabled = false;
+        btn.textContent = '🚀 Create Account';
+        goToStep(1);
+      }
+    });
+  </script>
+</body>
+</html>

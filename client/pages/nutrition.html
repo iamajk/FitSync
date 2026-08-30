@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Nutrition — FitSync</title>
+  <link rel="stylesheet" href="/css/style.css" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+  <style>
+    .nutrition-grid { display: grid; grid-template-columns: 1fr 2fr; gap: 1.5rem; margin-top: 1.5rem; }
+    .meal-item {
+      display: flex; align-items: flex-start; gap: 1rem;
+      padding: 1rem;
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius);
+      margin-bottom: 0.75rem;
+      transition: var(--transition);
+      animation: fadeInUp 0.3s ease;
+    }
+    .meal-item:hover { border-color: var(--primary); }
+    .meal-type-icon {
+      width: 42px; height: 42px;
+      border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.2rem; flex-shrink: 0;
+    }
+    .macro-pills { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-top: 0.4rem; }
+    .macro-pill {
+      padding: 0.15rem 0.6rem;
+      border-radius: 12px;
+      font-size: 0.72rem; font-weight: 600;
+    }
+    .macro-doughnut { max-width: 200px; margin: 0 auto; }
+    .daily-summary-box {
+      background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+      border-radius: var(--radius);
+      padding: 1.5rem;
+      color: white;
+      margin-bottom: 1.5rem;
+    }
+    .daily-summary-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem; }
+    .summary-num { font-size: 2rem; font-weight: 900; }
+    .summary-label { font-size: 0.8rem; opacity: 0.7; }
+    @media (max-width: 900px) { .nutrition-grid { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+  <div id="nutritionPage">
+    <!-- Date Selector + Add Button -->
+    <div style="display:flex; gap:1rem; align-items:center; margin-bottom:1.5rem; flex-wrap:wrap;">
+      <div style="display:flex; align-items:center; gap:0.75rem;">
+        <button class="btn btn-secondary btn-sm" onclick="changeDate(-1)">← Prev</button>
+        <input type="date" id="selectedDate" class="form-control" style="width:160px;" />
+        <button class="btn btn-secondary btn-sm" onclick="changeDate(1)">Next →</button>
+      </div>
+      <button class="btn btn-primary" style="margin-left:auto;" onclick="openMealModal()">+ Log Meal</button>
+    </div>
+
+    <div class="nutrition-grid">
+      <!-- LEFT: Summary Panel -->
+      <div>
+        <!-- Daily Summary Card -->
+        <div class="daily-summary-box">
+          <div style="font-weight:700;margin-bottom:1rem;font-size:1rem;">📊 Today's Summary</div>
+          <div class="daily-summary-row">
+            <div>
+              <div class="summary-num" id="summaryCalories">0</div>
+              <div class="summary-label">Calories Consumed</div>
+            </div>
+            <div style="text-align:right;">
+              <div style="font-size:1.2rem;font-weight:700;" id="summaryGoal">/ 2000</div>
+              <div class="summary-label">Daily Goal</div>
+            </div>
+          </div>
+          <div class="progress-bar-wrap" style="background:rgba(255,255,255,0.2);">
+            <div class="progress-bar" id="calProgressBar" style="width:0%;background:white;"></div>
+          </div>
+        </div>
+
+        <!-- Macro Breakdown Chart -->
+        <div class="card" style="margin-bottom:1.5rem;">
+          <h3 style="margin-bottom:1rem;">🥊 Macros</h3>
+          <div class="macro-doughnut">
+            <canvas id="macroChart"></canvas>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:0.5rem;margin-top:1rem;text-align:center;">
+            <div><div style="font-size:1.2rem;font-weight:800;color:#6366f1;" id="totalProtein">0g</div><div class="text-muted text-xs">Protein</div></div>
+            <div><div style="font-size:1.2rem;font-weight:800;color:#f59e0b;" id="totalCarbs">0g</div><div class="text-muted text-xs">Carbs</div></div>
+            <div><div style="font-size:1.2rem;font-weight:800;color:#06b6d4;" id="totalFats">0g</div><div class="text-muted text-xs">Fats</div></div>
+          </div>
+        </div>
+
+        <!-- Calorie Goal Tip -->
+        <div class="card">
+          <h4 style="margin-bottom:0.5rem;">💡 Nutrition Tips</h4>
+          <ul style="color:var(--text-secondary);font-size:0.85rem;line-height:2;padding-left:1rem;">
+            <li>Aim for 1g protein per lb bodyweight</li>
+            <li>Carbs = main energy source for workouts</li>
+            <li>Healthy fats support hormone production</li>
+            <li>Drink water before each meal</li>
+          </ul>
+        </div>
+      </div>
+
+      <!-- RIGHT: Meal List -->
+      <div>
+        <div class="section-header">
+          <h2>🥗 Meals Logged</h2>
+          <span id="mealCount" class="badge badge-primary">0 meals</span>
+        </div>
+        <div id="mealList">
+          <div class="loading-overlay"><div class="spinner"></div><span>Loading meals...</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Meal Modal -->
+  <div class="modal-overlay" id="mealModal">
+    <div class="modal">
+      <div class="modal-header">
+        <h3 id="mealModalTitle">Log Meal</h3>
+        <button class="modal-close" onclick="closeMealModal()">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="grid-2">
+          <div class="form-group">
+            <label>Meal Name *</label>
+            <input type="text" id="mName" class="form-control" placeholder="e.g. Chicken & Rice" />
+          </div>
+          <div class="form-group">
+            <label>Meal Type</label>
+            <select id="mType" class="form-control">
+              <option value="breakfast">🌅 Breakfast</option>
+              <option value="lunch">☀️ Lunch</option>
+              <option value="dinner">🌙 Dinner</option>
+              <option value="snack">🍎 Snack</option>
+              <option value="pre_workout">⚡ Pre-Workout</option>
+              <option value="post_workout">💪 Post-Workout</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Calories *</label>
+          <input type="number" id="mCal" class="form-control" placeholder="e.g. 450" min="0" />
+        </div>
+        <div class="grid-2">
+          <div class="form-group">
+            <label>Protein (g)</label>
+            <input type="number" id="mProtein" class="form-control" placeholder="e.g. 35" min="0" step="0.1" />
+          </div>
+          <div class="form-group">
+            <label>Carbs (g)</label>
+            <input type="number" id="mCarbs" class="form-control" placeholder="e.g. 60" min="0" step="0.1" />
+          </div>
+        </div>
+        <div class="grid-2">
+          <div class="form-group">
+            <label>Fats (g)</label>
+            <input type="number" id="mFats" class="form-control" placeholder="e.g. 12" min="0" step="0.1" />
+          </div>
+          <div class="form-group">
+            <label>Serving Size</label>
+            <input type="text" id="mServing" class="form-control" placeholder="e.g. 200g, 1 cup" />
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Notes</label>
+          <input type="text" id="mNotes" class="form-control" placeholder="Optional notes" />
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="closeMealModal()">Cancel</button>
+        <button class="btn btn-primary" id="saveMealBtn" onclick="saveMeal()">💾 Save Meal</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="/js/config.js"></script>
+  <script src="/js/api.js"></script>
+  <script src="/js/layout.js"></script>
+  <script>
+    renderLayout('nutrition', 'Nutrition Tracker', 'Log and monitor your daily diet');
+
+    let macroChart;
+    let editingMealId = null;
+
+    // Set today's date
+    const dateInput = document.getElementById('selectedDate');
+    dateInput.value = new Date().toLocaleDateString('en-CA');
+    dateInput.addEventListener('change', loadMeals);
+
+    function changeDate(delta) {
+      // Anchor at local noon so day-stepping never skips a day across timezones
+      const d = new Date(dateInput.value + 'T12:00:00');
+      d.setDate(d.getDate() + delta);
+      dateInput.value = d.toLocaleDateString('en-CA');
+      loadMeals();
+    }
+
+    async function loadMeals() {
+      const date = dateInput.value;
+      document.getElementById('mealList').innerHTML = '<div class="loading-overlay"><div class="spinner"></div></div>';
+      try {
+        const data = await API.Nutrition.getAll(`date=${date}`);
+        updateSummary(data.todayTotals);
+        renderMeals(data.meals);
+      } catch (e) { showToast('Failed to load meals', 'error'); }
+    }
+
+    function updateSummary(totals) {
+      const cal = Math.round(totals.totalCalories || 0);
+      const goal = 2000;
+      document.getElementById('summaryCalories').textContent = cal;
+      document.getElementById('summaryGoal').textContent = `/ ${goal} kcal`;
+      document.getElementById('calProgressBar').style.width = `${Math.min(100, (cal/goal)*100)}%`;
+      document.getElementById('totalProtein').textContent = Math.round(totals.totalProtein || 0) + 'g';
+      document.getElementById('totalCarbs').textContent = Math.round(totals.totalCarbs || 0) + 'g';
+      document.getElementById('totalFats').textContent = Math.round(totals.totalFats || 0) + 'g';
+
+      // Update doughnut chart
+      updateMacroChart(totals.totalProtein || 0, totals.totalCarbs || 0, totals.totalFats || 0);
+    }
+
+    function updateMacroChart(p, c, f) {
+      const ctx = document.getElementById('macroChart').getContext('2d');
+      const total = p + c + f;
+      if (macroChart) macroChart.destroy();
+      macroChart = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+          labels: ['Protein', 'Carbs', 'Fats'],
+          datasets: [{
+            data: total ? [p, c, f] : [1, 1, 1],
+            backgroundColor: ['rgba(99,102,241,0.8)', 'rgba(245,158,11,0.8)', 'rgba(6,182,212,0.8)'],
+            borderColor: ['#6366f1', '#f59e0b', '#06b6d4'],
+            borderWidth: 2,
+          }],
+        },
+        options: {
+          responsive: true,
+          cutout: '70%',
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              callbacks: {
+                label: (ctx) => `${ctx.label}: ${Math.round(ctx.raw)}g (${total ? Math.round(ctx.raw/total*100) : 0}%)`
+              }
+            }
+          }
+        }
+      });
+    }
+
+    const mealIcons = { breakfast:'🌅', lunch:'☀️', dinner:'🌙', snack:'🍎', pre_workout:'⚡', post_workout:'💪' };
+    const mealColors = {
+      breakfast:'rgba(245,158,11,0.15)', lunch:'rgba(34,197,94,0.15)',
+      dinner:'rgba(99,102,241,0.15)', snack:'rgba(6,182,212,0.15)',
+      pre_workout:'rgba(239,68,68,0.15)', post_workout:'rgba(168,85,247,0.15)'
+    };
+
+    function renderMeals(meals) {
+      document.getElementById('mealCount').textContent = `${meals.length} meal${meals.length!==1?'s':''}`;
+      const container = document.getElementById('mealList');
+      if (!meals.length) {
+        container.innerHTML = '<div class="empty-state"><div class="empty-icon">🥗</div><h3>No meals logged</h3><p>Start tracking your nutrition today!</p><button class="btn btn-primary" onclick="openMealModal()">+ Log Meal</button></div>';
+        return;
+      }
+      container.innerHTML = meals.map(m => `
+        <div class="meal-item">
+          <div class="meal-type-icon" style="background:${mealColors[m.mealType]||'rgba(99,102,241,0.15)'}">
+            ${mealIcons[m.mealType]||'🥗'}
+          </div>
+          <div style="flex:1;">
+            <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+              <div>
+                <div style="font-weight:700;font-size:0.95rem;">${m.mealName}</div>
+                <div style="font-size:0.75rem;color:var(--text-muted);">${m.mealType.replace('_',' ')} · ${m.servingSize || '1 serving'}</div>
+              </div>
+              <div style="text-align:right;">
+                <div style="font-weight:800;font-size:1.1rem;">${m.calories} <span style="font-size:0.75rem;color:var(--text-muted);">kcal</span></div>
+              </div>
+            </div>
+            <div class="macro-pills">
+              <span class="macro-pill" style="background:rgba(99,102,241,0.15);color:#818cf8;">P: ${m.protein}g</span>
+              <span class="macro-pill" style="background:rgba(245,158,11,0.15);color:#f59e0b;">C: ${m.carbs}g</span>
+              <span class="macro-pill" style="background:rgba(6,182,212,0.15);color:#06b6d4;">F: ${m.fats}g</span>
+            </div>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:0.5rem;margin-left:0.5rem;">
+            <button class="btn btn-secondary btn-sm" onclick="editMeal('${m._id}')">✏️</button>
+            <button class="btn btn-danger btn-sm" onclick="deleteMeal('${m._id}')">🗑️</button>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    // Modal
+    function openMealModal(meal = null) {
+      editingMealId = meal ? meal._id : null;
+      document.getElementById('mealModalTitle').textContent = meal ? 'Edit Meal' : 'Log Meal';
+      document.getElementById('mName').value = meal?.mealName || '';
+      document.getElementById('mType').value = meal?.mealType || 'breakfast';
+      document.getElementById('mCal').value = meal?.calories || '';
+      document.getElementById('mProtein').value = meal?.protein || '';
+      document.getElementById('mCarbs').value = meal?.carbs || '';
+      document.getElementById('mFats').value = meal?.fats || '';
+      document.getElementById('mServing').value = meal?.servingSize || '';
+      document.getElementById('mNotes').value = meal?.notes || '';
+      document.getElementById('mealModal').classList.add('active');
+    }
+
+    function closeMealModal() { document.getElementById('mealModal').classList.remove('active'); }
+
+    function editMeal(id) {
+      // Find from DOM isn't ideal; reload from API
+      API.Nutrition.getAll(`date=${dateInput.value}`).then(d => {
+        const m = d.meals.find(x => x._id === id);
+        if (m) openMealModal(m);
+      });
+    }
+
+    async function deleteMeal(id) {
+      if (!confirm('Delete this meal?')) return;
+      try {
+        await API.Nutrition.delete(id);
+        showToast('Meal deleted', 'success');
+        loadMeals();
+      } catch (e) { showToast('Delete failed', 'error'); }
+    }
+
+    async function saveMeal() {
+      const name = document.getElementById('mName').value.trim();
+      const calories = parseFloat(document.getElementById('mCal').value);
+      if (!name) return showToast('Meal name is required', 'error');
+      if (!calories) return showToast('Calories are required', 'error');
+
+      const payload = {
+        mealName: name,
+        mealType: document.getElementById('mType').value,
+        calories,
+        protein: parseFloat(document.getElementById('mProtein').value) || 0,
+        carbs: parseFloat(document.getElementById('mCarbs').value) || 0,
+        fats: parseFloat(document.getElementById('mFats').value) || 0,
+        servingSize: document.getElementById('mServing').value || '1 serving',
+        notes: document.getElementById('mNotes').value,
+        mealTime: new Date(dateInput.value + 'T12:00:00'),
+      };
+
+      const btn = document.getElementById('saveMealBtn');
+      btn.disabled = true; btn.textContent = 'Saving...';
+
+      try {
+        if (editingMealId) {
+          await API.Nutrition.update(editingMealId, payload);
+          showToast('Meal updated! 🥗', 'success');
+        } else {
+          await API.Nutrition.create(payload);
+          showToast('Meal logged! 🥗', 'success');
+        }
+        closeMealModal();
+        loadMeals();
+      } catch (e) {
+        showToast(e.message || 'Save failed', 'error');
+      } finally {
+        btn.disabled = false; btn.textContent = '💾 Save Meal';
+      }
+    }
+
+    loadMeals();
+    document.getElementById('mealModal').addEventListener('click', e => {
+      if (e.target === document.getElementById('mealModal')) closeMealModal();
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,517 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Workouts — FitSync</title>
+  <link rel="stylesheet" href="/css/style.css" />
+  <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+  <style>
+    .filter-bar {
+      display: flex; gap: 0.75rem; flex-wrap: wrap;
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius);
+      padding: 1rem 1.5rem;
+      margin-bottom: 1.5rem;
+      align-items: center;
+    }
+    .filter-bar select, .filter-bar input { flex: 1; min-width: 140px; max-width: 200px; }
+    .workout-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius);
+      padding: 1.25rem;
+      margin-bottom: 1rem;
+      transition: var(--transition);
+      animation: fadeInUp 0.3s ease;
+    }
+    .workout-card:hover { transform: translateY(-2px); border-color: var(--primary); }
+    .workout-card-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 0.875rem; }
+    .workout-card-title { font-size: 1.1rem; font-weight: 700; }
+    .workout-card-meta { font-size: 0.8rem; color: var(--text-muted); margin-top: 0.2rem; }
+    .exercise-list { margin: 0.75rem 0; }
+    .exercise-row {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.5rem 0.75rem;
+      background: var(--bg-secondary);
+      border-radius: var(--radius-sm);
+      margin-bottom: 0.4rem;
+      font-size: 0.85rem;
+    }
+    .exercise-row .ex-name { font-weight: 600; flex: 1; }
+    .exercise-row .ex-meta { color: var(--text-muted); }
+    .workout-footer { display: flex; align-items: center; justify-content: space-between; margin-top: 0.75rem; }
+    .workout-actions { display: flex; gap: 0.5rem; }
+    .pagination { display: flex; gap: 0.5rem; justify-content: center; margin-top: 1.5rem; }
+    .page-btn {
+      width: 36px; height: 36px;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border-color);
+      background: var(--bg-card);
+      color: var(--text-primary);
+      font-size: 0.85rem;
+      cursor: pointer;
+      transition: var(--transition);
+      display: flex; align-items: center; justify-content: center;
+    }
+    .page-btn.active { background: var(--primary); border-color: var(--primary); color: white; }
+    .page-btn:hover:not(.active) { background: var(--bg-card-hover); }
+    .exercise-entry {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-sm);
+      padding: 1rem;
+      margin-bottom: 0.75rem;
+      position: relative;
+    }
+    .remove-ex { position: absolute; top: 0.75rem; right: 0.75rem; background: rgba(239,68,68,0.1); color: #ef4444; border-radius: 6px; padding: 2px 8px; font-size: 0.8rem; cursor: pointer; }
+  </style>
+</head>
+<body>
+  <div id="workoutPage">
+    <!-- Top Stats Row -->
+    <div class="stats-grid" style="grid-template-columns: repeat(4,1fr);" id="workoutStats">
+      <div class="stat-card" style="--card-color:#6366f1;">
+        <div class="stat-icon" style="background:linear-gradient(135deg,#6366f1,#4f46e5);">🏋️</div>
+        <div class="stat-info">
+          <div class="stat-label">Total Workouts</div>
+          <div class="stat-value" id="totalWorkouts">—</div>
+        </div>
+      </div>
+      <div class="stat-card" style="--card-color:#22c55e;">
+        <div class="stat-icon" style="background:linear-gradient(135deg,#22c55e,#16a34a);">🔥</div>
+        <div class="stat-info">
+          <div class="stat-label">Total Calories</div>
+          <div class="stat-value" id="totalCal">—</div>
+        </div>
+      </div>
+      <div class="stat-card" style="--card-color:#f59e0b;">
+        <div class="stat-icon" style="background:linear-gradient(135deg,#f59e0b,#d97706);">⏱️</div>
+        <div class="stat-info">
+          <div class="stat-label">Total Minutes</div>
+          <div class="stat-value" id="totalMin">—</div>
+        </div>
+      </div>
+      <div class="stat-card" style="--card-color:#06b6d4;">
+        <div class="stat-icon" style="background:linear-gradient(135deg,#06b6d4,#0891b2);">📅</div>
+        <div class="stat-info">
+          <div class="stat-label">This Week</div>
+          <div class="stat-value" id="weekCount">—</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Date Navigator Bar -->
+    <div class="filter-bar" style="justify-content:space-between;">
+      <div style="display:flex;align-items:center;gap:0.5rem;">
+        <button class="btn btn-secondary btn-sm" id="prevDayBtn">← Prev</button>
+        <input type="date" id="filterDate" class="form-control" style="max-width:160px;" />
+        <button class="btn btn-secondary btn-sm" id="nextDayBtn">Next →</button>
+        <button class="btn btn-secondary btn-sm" id="todayBtn">Today</button>
+      </div>
+      <div style="display:flex;align-items:center;gap:0.75rem;">
+        <select id="filterType" class="form-control" style="max-width:160px;">
+          <option value="">All Types</option>
+          <option value="strength">Strength</option>
+          <option value="cardio">Cardio</option>
+          <option value="hiit">HIIT</option>
+          <option value="yoga">Yoga</option>
+          <option value="flexibility">Flexibility</option>
+          <option value="other">Other</option>
+        </select>
+        <button class="btn btn-secondary btn-sm" id="clearTypeBtn">✕ Clear</button>
+        <button class="btn btn-primary" id="logWorkoutBtn">+ Log Workout</button>
+      </div>
+    </div>
+
+    <!-- Workout List -->
+    <div id="workoutList">
+      <div class="loading-overlay"><div class="spinner"></div><span>Loading workouts...</span></div>
+    </div>
+    <div id="pagination"></div>
+  </div>
+
+  <!-- Workout Modal -->
+  <div class="modal-overlay" id="workoutModal">
+    <div class="modal" style="max-width:640px;">
+      <div class="modal-header">
+        <h3 id="modalTitle">Log New Workout</h3>
+        <button class="modal-close" onclick="closeWorkoutModal()">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="grid-2">
+          <div class="form-group">
+            <label>Workout Name *</label>
+            <input type="text" id="wName" class="form-control" placeholder="e.g. Morning Push Day" required />
+          </div>
+          <div class="form-group">
+            <label>Type</label>
+            <select id="wType" class="form-control">
+              <option value="strength">Strength</option>
+              <option value="cardio">Cardio</option>
+              <option value="hiit">HIIT</option>
+              <option value="yoga">Yoga</option>
+              <option value="flexibility">Flexibility</option>
+              <option value="other">Other</option>
+            </select>
+          </div>
+        </div>
+        <div class="grid-2">
+          <div class="form-group">
+            <label>Date</label>
+            <input type="date" id="wDate" class="form-control" />
+          </div>
+          <div class="form-group">
+            <label>Intensity</label>
+            <select id="wIntensity" class="form-control">
+              <option value="low">Low</option>
+              <option value="moderate" selected>Moderate</option>
+              <option value="high">High</option>
+              <option value="extreme">Extreme</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Exercises -->
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.75rem;">
+          <h4>Exercises</h4>
+          <button type="button" class="btn btn-secondary btn-sm" onclick="addExerciseRow()">+ Add Exercise</button>
+        </div>
+        <div id="exerciseRows"></div>
+
+        <div class="form-group" style="margin-top:0.75rem;">
+          <label>Notes (optional)</label>
+          <textarea id="wNotes" class="form-control" rows="2" placeholder="How did the workout go?"></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="closeWorkoutModal()">Cancel</button>
+        <button class="btn btn-primary" id="saveWorkoutBtn" onclick="saveWorkout()">💾 Save Workout</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="/js/config.js"></script>
+  <script src="/js/api.js"></script>
+  <script src="/js/layout.js"></script>
+  <script>
+    renderLayout('workouts', 'My Workouts', 'Log and track your training sessions');
+
+    let currentPage = 1;
+    let editingId = null;
+
+    // ── Date navigator ────────────────────────────
+    function localDate(d) {
+      // Returns YYYY-MM-DD in LOCAL timezone
+      return d.getFullYear() + '-' +
+        String(d.getMonth() + 1).padStart(2, '0') + '-' +
+        String(d.getDate()).padStart(2, '0');
+    }
+
+    // Set today as default
+    document.getElementById('filterDate').value = localDate(new Date());
+
+    function getFilterDate() {
+      return document.getElementById('filterDate').value || localDate(new Date());
+    }
+
+    function shiftDay(n) {
+      const d = new Date(getFilterDate() + 'T12:00:00'); // noon to avoid DST
+      d.setDate(d.getDate() + n);
+      document.getElementById('filterDate').value = localDate(d);
+      loadWorkouts(1);
+    }
+
+    document.getElementById('prevDayBtn').addEventListener('click', () => shiftDay(-1));
+    document.getElementById('nextDayBtn').addEventListener('click', () => shiftDay(1));
+    document.getElementById('todayBtn').addEventListener('click', () => {
+      document.getElementById('filterDate').value = localDate(new Date());
+      loadWorkouts(1);
+    });
+    document.getElementById('filterDate').addEventListener('change', () => loadWorkouts(1));
+    document.getElementById('filterType').addEventListener('change', () => loadWorkouts(1));
+    document.getElementById('clearTypeBtn').addEventListener('click', () => {
+      document.getElementById('filterType').value = '';
+      loadWorkouts(1);
+    });
+    document.getElementById('logWorkoutBtn').addEventListener('click', openWorkoutModal);
+
+    // ── Load Workouts ─────────────────────────────
+    async function loadWorkouts(page = 1) {
+      currentPage = page;
+      const date = getFilterDate();
+      const type = document.getElementById('filterType').value;
+      let params = `page=${page}&limit=8&startDate=${date}&endDate=${date}`;
+      if (type) params += `&workoutType=${type}`;
+
+      document.getElementById('workoutList').innerHTML =
+        '<div class="loading-overlay"><div class="spinner"></div><span>Loading...</span></div>';
+
+      try {
+        const data = await API.Workouts.getAll(params);
+        renderWorkouts(data.workouts, date);
+        renderPagination(data.totalPages, data.currentPage);
+      } catch (e) { showToast('Failed to load workouts', 'error'); }
+    }
+
+    function renderWorkouts(workouts, date) {
+      const container = document.getElementById('workoutList');
+      // Format display date
+      const displayDate = new Date(date + 'T12:00:00').toLocaleDateString('en-US',
+        { weekday:'long', month:'long', day:'numeric', year:'numeric' });
+
+      if (!workouts.length) {
+        container.innerHTML = `
+          <div class="empty-state">
+            <div class="empty-icon">🏋️</div>
+            <h3>No workouts on ${displayDate}</h3>
+            <p>Nothing logged for this day yet.</p>
+            <button class="btn btn-primary" id="emptyLogBtn">+ Log Workout</button>
+          </div>`;
+        document.getElementById('emptyLogBtn')?.addEventListener('click', openWorkoutModal);
+        return;
+      }
+      const typeIcons = { strength:'💪', cardio:'🏃', hiit:'⚡', yoga:'🧘', flexibility:'🤸', other:'🏋️' };
+      container.innerHTML = workouts.map(w => `
+        <div class="workout-card">
+          <div class="workout-card-header">
+            <div>
+              <div class="workout-card-title">${typeIcons[w.workoutType]||'🏋️'} ${w.workoutName}</div>
+              <div class="workout-card-meta">📅 ${formatDate(w.workoutDate)} · ⚡ ${w.intensity}</div>
+            </div>
+            <span class="badge badge-primary">${w.workoutType}</span>
+          </div>
+          ${w.exercises && w.exercises.length ? `
+          <div class="exercise-list">
+            ${w.exercises.slice(0,3).map(ex => `
+              <div class="exercise-row">
+                <span class="ex-name">🔸 ${ex.exerciseName}</span>
+                ${ex.sets ? `<span class="ex-meta">${ex.sets}×${ex.reps}</span>` : ''}
+                ${ex.weight ? `<span class="ex-meta">${ex.weight}kg</span>` : ''}
+                ${ex.duration ? `<span class="ex-meta">${ex.duration}min</span>` : ''}
+                <span class="badge badge-info">${ex.muscleGroup}</span>
+              </div>`).join('')}
+            ${w.exercises.length > 3 ? `<div style="font-size:.8rem;color:var(--text-muted);padding:.25rem .75rem">+${w.exercises.length-3} more</div>` : ''}
+          </div>` : ''}
+          <div class="workout-footer">
+            <div style="display:flex;gap:1.5rem">
+              <span style="font-size:.85rem"><strong>${w.totalCaloriesBurned}</strong> <span style="color:var(--text-muted)">kcal</span></span>
+              <span style="font-size:.85rem"><strong>${w.totalDuration}</strong> <span style="color:var(--text-muted)">min</span></span>
+              <span style="font-size:.85rem"><strong>${w.exercises?.length||0}</strong> <span style="color:var(--text-muted)">exercises</span></span>
+            </div>
+            <div class="workout-actions">
+              <button class="btn btn-secondary btn-sm btn-edit-w" data-id="${w._id}">✏️ Edit</button>
+              <button class="btn btn-danger btn-sm btn-del-w" data-id="${w._id}" data-name="${w.workoutName.replace(/"/g,'&quot;')}">🗑️</button>
+            </div>
+          </div>
+        </div>`).join('');
+
+      // Event delegation — no inline onclick needed
+      container.querySelectorAll('.btn-edit-w').forEach(btn =>
+        btn.addEventListener('click', () => editWorkout(btn.dataset.id)));
+      container.querySelectorAll('.btn-del-w').forEach(btn =>
+        btn.addEventListener('click', () => deleteWorkout(btn.dataset.id, btn.dataset.name)));
+    }
+
+    function renderPagination(total, current) {
+      const pag = document.getElementById('pagination');
+      if (total <= 1) { pag.innerHTML = ''; return; }
+      pag.innerHTML = Array.from({ length: total }, (_, i) =>
+        `<button class="page-btn ${i+1 === current ? 'active' : ''}" data-page="${i+1}">${i+1}</button>`
+      ).join('');
+      pag.querySelectorAll('.page-btn').forEach(btn =>
+        btn.addEventListener('click', () => loadWorkouts(parseInt(btn.dataset.page))));
+    }
+
+    // ── Load Stats ────────────────────────────────
+    async function loadStats() {
+      try {
+        const data = await API.Workouts.getStats();
+        const all = data.allTime;
+        document.getElementById('totalWorkouts').textContent = all.totalWorkouts || 0;
+        document.getElementById('totalCal').textContent = Math.round(all.totalCalories || 0);
+        document.getElementById('totalMin').textContent = Math.round(all.totalDuration || 0);
+        const weekCount = data.weeklyStats.reduce((s, d) => s + d.count, 0);
+        document.getElementById('weekCount').textContent = weekCount;
+      } catch (e) {}
+    }
+
+    // ── Modal ──────────────────────────────────────
+    function openWorkoutModal() {
+      editingId = null;
+      document.getElementById('modalTitle').textContent = 'Log New Workout';
+      document.getElementById('wName').value = '';
+      document.getElementById('wType').value = 'strength';
+      // Default date = currently viewed date in navigator
+      document.getElementById('wDate').value = getFilterDate();
+      document.getElementById('wIntensity').value = 'moderate';
+      document.getElementById('wNotes').value = '';
+      document.getElementById('exerciseRows').innerHTML = '';
+      addExerciseRow();
+      document.getElementById('workoutModal').classList.add('active');
+    }
+
+    function closeWorkoutModal() { document.getElementById('workoutModal').classList.remove('active'); }
+
+    async function editWorkout(id) {
+      try {
+        const data = await API.Workouts.getById(id);
+        const w = data.workout;
+        editingId = id;
+        document.getElementById('modalTitle').textContent = 'Edit Workout';
+        document.getElementById('wName').value = w.workoutName;
+        document.getElementById('wType').value = w.workoutType;
+        document.getElementById('wDate').value = w.workoutDate.split('T')[0];
+        document.getElementById('wIntensity').value = w.intensity;
+        document.getElementById('wNotes').value = w.notes || '';
+        document.getElementById('exerciseRows').innerHTML = '';
+        if (w.exercises && w.exercises.length) {
+          w.exercises.forEach(ex => addExerciseRow(ex));
+        } else { addExerciseRow(); }
+        document.getElementById('workoutModal').classList.add('active');
+      } catch (e) { showToast('Failed to load workout', 'error'); }
+    }
+
+    async function deleteWorkout(id, name) {
+      if (!confirm(`Delete workout "${name}"?`)) return;
+      try {
+        await API.Workouts.delete(id);
+        showToast('Workout deleted', 'success');
+        loadWorkouts(currentPage);
+        loadStats();
+      } catch (e) { showToast('Delete failed', 'error'); }
+    }
+
+    // ── Exercise Rows ─────────────────────────────
+    const muscleGroups = ['chest','back','shoulders','biceps','triceps','forearms','abs','quadriceps','hamstrings','glutes','calves','full_body','cardio','other'];
+
+    const calRateByType = { strength:6, cardio:9, hiit:11, yoga:4, flexibility:3, other:5 };
+
+    function getWorkoutRate() {
+      const type = document.getElementById('wType')?.value || 'other';
+      return calRateByType[type] || 5;
+    }
+
+    function autoCalcCal(row) {
+      const dur = parseInt(row.querySelector('.ex-duration').value) || 0;
+      const calEl = row.querySelector('.ex-cal');
+      if (dur > 0) calEl.value = Math.round(dur * getWorkoutRate());
+    }
+
+    function addExerciseRow(ex = null) {
+      const row = document.createElement('div');
+      row.className = 'exercise-entry';
+      row.innerHTML = `
+        <button type="button" class="remove-ex" onclick="this.parentElement.remove()">✕</button>
+        <div class="grid-2" style="margin-bottom:0.5rem;">
+          <div class="form-group" style="margin:0;">
+            <label>Exercise Name</label>
+            <input type="text" class="form-control ex-name" placeholder="e.g. Bench Press" value="${ex?.exerciseName||''}" />
+          </div>
+          <div class="form-group" style="margin:0;">
+            <label>Muscle Group</label>
+            <select class="form-control ex-muscle">
+              ${muscleGroups.map(m => `<option value="${m}" ${ex?.muscleGroup===m?'selected':''}>${m.replace('_',' ')}</option>`).join('')}
+            </select>
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:0.5rem;">
+          <div class="form-group" style="margin:0;">
+            <label>Sets</label>
+            <input type="number" class="form-control ex-sets" min="1" value="${ex?.sets||3}" placeholder="3" />
+          </div>
+          <div class="form-group" style="margin:0;">
+            <label>Reps</label>
+            <input type="number" class="form-control ex-reps" min="1" value="${ex?.reps||10}" placeholder="10" />
+          </div>
+          <div class="form-group" style="margin:0;">
+            <label>Weight (kg)</label>
+            <input type="number" class="form-control ex-weight" min="0" step="0.5" value="${ex?.weight||0}" placeholder="0" />
+          </div>
+          <div class="form-group" style="margin:0;">
+            <label>Duration (min)</label>
+            <input type="number" class="form-control ex-duration" min="0" value="${ex?.duration||0}" placeholder="0" />
+          </div>
+        </div>
+        <div class="form-group" style="margin:0;margin-top:0.5rem;">
+          <label>Est. Calories Burned <span style="color:var(--text-muted);font-size:0.75rem;">(auto-calculated)</span></label>
+          <input type="number" class="form-control ex-cal" min="0" value="${ex?.caloriesBurned||0}" placeholder="auto" />
+        </div>
+      `;
+      // Auto-calc calories when duration changes
+      row.querySelector('.ex-duration').addEventListener('input', () => autoCalcCal(row));
+      document.getElementById('exerciseRows').appendChild(row);
+      // If editing existing exercise with duration, show estimated calories
+      if (ex?.duration && !ex?.caloriesBurned) autoCalcCal(row);
+    }
+
+    async function saveWorkout() {
+      const name = document.getElementById('wName').value.trim();
+      if (!name) return showToast('Workout name is required', 'error');
+
+      const rows = document.querySelectorAll('.exercise-entry');
+      const exercises = Array.from(rows).map(row => ({
+        exerciseName: row.querySelector('.ex-name').value,
+        muscleGroup: row.querySelector('.ex-muscle').value,
+        sets: parseInt(row.querySelector('.ex-sets').value) || 1,
+        reps: parseInt(row.querySelector('.ex-reps').value) || 1,
+        weight: parseFloat(row.querySelector('.ex-weight').value) || 0,
+        duration: parseInt(row.querySelector('.ex-duration').value) || 0,
+        caloriesBurned: parseInt(row.querySelector('.ex-cal').value) || 0,
+      })).filter(e => e.exerciseName.trim());
+
+      // Anchor the date at local noon so day-range filters are timezone-safe
+      const rawDate = document.getElementById('wDate').value;
+      const workoutDate = rawDate
+        ? new Date(rawDate + 'T12:00:00').toISOString()
+        : new Date().toISOString();
+
+      const payload = {
+        workoutName: name,
+        workoutType: document.getElementById('wType').value,
+        workoutDate,
+        intensity: document.getElementById('wIntensity').value,
+        notes: document.getElementById('wNotes').value,
+        exercises,
+      };
+
+      const btn = document.getElementById('saveWorkoutBtn');
+      btn.disabled = true;
+      btn.textContent = 'Saving...';
+
+      try {
+        if (editingId) {
+          await API.Workouts.update(editingId, payload);
+          showToast('Workout updated! 💪', 'success');
+        } else {
+          await API.Workouts.create(payload);
+          showToast('Workout logged! 💪', 'success');
+          // Emit socket event
+          if (window._socket) {
+            const user = getCurrentUser();
+            window._socket.emit('workout_logged', { userId: user.id, workoutName: name });
+          }
+        }
+        closeWorkoutModal();
+        loadWorkouts(currentPage);
+        loadStats();
+      } catch (e) {
+        showToast(e.message || 'Save failed', 'error');
+      } finally {
+        btn.disabled = false;
+        btn.textContent = '💾 Save Workout';
+      }
+    }
+
+    // Init
+    loadWorkouts(1);
+    loadStats();
+    document.getElementById('workoutModal').addEventListener('click', e => {
+      if (e.target === document.getElementById('workoutModal')) closeWorkoutModal();
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Login — FitSync</title>
+  <link rel="stylesheet" href="/css/style.css" />
+  <style>
+    body {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 2rem;
+      background: radial-gradient(ellipse at 30% 50%, rgba(99,102,241,0.2) 0%, transparent 60%),
+                  radial-gradient(ellipse at 70% 50%, rgba(6,182,212,0.1) 0%, transparent 60%),
+                  var(--bg-primary);
+    }
+    .auth-container {
+      width: 100%;
+      max-width: 460px;
+      animation: fadeInUp 0.5s ease;
+    }
+    .auth-logo {
+      text-align: center;
+      margin-bottom: 2rem;
+    }
+    .auth-logo .logo-icon-big {
+      width: 64px; height: 64px;
+      border-radius: 18px;
+      background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.8rem;
+      margin: 0 auto 1rem;
+    }
+    .auth-logo h1 {
+      font-size: 2rem;
+      font-weight: 900;
+      background: linear-gradient(135deg, var(--primary-light), var(--secondary));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .auth-logo p { color: var(--text-secondary); font-size: 0.9rem; }
+    .auth-card {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-lg);
+      padding: 2rem;
+      box-shadow: 0 24px 80px rgba(0,0,0,0.4);
+    }
+    .auth-card h2 { font-size: 1.4rem; margin-bottom: 0.25rem; }
+    .auth-card .subtitle { color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 1.75rem; }
+    .divider {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      margin: 1.25rem 0;
+      color: var(--text-muted);
+      font-size: 0.85rem;
+    }
+    .divider::before, .divider::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: var(--border-color);
+    }
+    .auth-footer { text-align: center; margin-top: 1.5rem; color: var(--text-secondary); font-size: 0.9rem; }
+    .auth-footer a { color: var(--primary-light); font-weight: 600; }
+    .input-group { position: relative; }
+    .input-group .input-icon {
+      position: absolute;
+      left: 1rem;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--text-muted);
+      font-size: 1rem;
+    }
+    .input-group .form-control { padding-left: 2.75rem; }
+    .error-msg {
+      background: rgba(239,68,68,0.1);
+      border: 1px solid rgba(239,68,68,0.3);
+      color: #ef4444;
+      padding: 0.75rem 1rem;
+      border-radius: var(--radius-sm);
+      font-size: 0.85rem;
+      margin-bottom: 1rem;
+      display: none;
+    }
+    .error-msg.show { display: block; animation: fadeIn 0.3s ease; }
+  </style>
+</head>
+<body>
+  <div class="auth-container">
+    <div class="auth-logo">
+      <div class="logo-icon-big">🏋️</div>
+      <h1>FitSync</h1>
+      <p>Your Smart Fitness Companion</p>
+    </div>
+
+    <div class="auth-card">
+      <h2>Welcome Back 👋</h2>
+      <p class="subtitle">Log in to continue your fitness journey</p>
+
+      <div class="error-msg" id="errorMsg"></div>
+
+      <form id="loginForm">
+        <div class="form-group">
+          <label>Email Address</label>
+          <div class="input-group">
+            <span class="input-icon">📧</span>
+            <input type="email" id="email" class="form-control" placeholder="you@example.com" required />
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Password</label>
+          <div class="input-group">
+            <span class="input-icon">🔒</span>
+            <input type="password" id="password" class="form-control" placeholder="Your password" required />
+          </div>
+        </div>
+        <button type="submit" class="btn btn-primary btn-full btn-lg" id="loginBtn">
+          Log In →
+        </button>
+      </form>
+
+      <div class="divider">or try demo</div>
+
+      <button class="btn btn-secondary btn-full" id="demoBtn">
+        🧪 Login as Demo User
+      </button>
+
+      <div class="auth-footer">
+        Don't have an account? <a href="/pages/register.html">Sign up free</a>
+      </div>
+    </div>
+  </div>
+
+  <script src="/js/config.js"></script>
+  <script src="/js/api.js"></script>
+  <script>
+    // Redirect if already logged in
+    if (localStorage.getItem('fitsync_token')) {
+      window.location.href = '/pages/dashboard.html';
+    }
+
+    const form = document.getElementById('loginForm');
+    const errorMsg = document.getElementById('errorMsg');
+    const loginBtn = document.getElementById('loginBtn');
+
+    const showError = (msg) => {
+      errorMsg.textContent = msg;
+      errorMsg.classList.add('show');
+    };
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      errorMsg.classList.remove('show');
+      loginBtn.disabled = true;
+      loginBtn.textContent = 'Logging in...';
+
+      try {
+        const data = await API.Auth.login({
+          email: document.getElementById('email').value,
+          password: document.getElementById('password').value,
+        });
+
+        saveAuth(data.token, data.user);
+        showToast(data.message, 'success');
+
+        setTimeout(() => {
+          if (data.user.role === 'admin') {
+            window.location.href = '/pages/admin.html';
+          } else {
+            window.location.href = '/pages/dashboard.html';
+          }
+        }, 500);
+      } catch (err) {
+        showError(err.message);
+        loginBtn.disabled = false;
+        loginBtn.textContent = 'Log In →';
+      }
+    });
+
+    // Demo login — signs in with the seeded demo account
+    document.getElementById('demoBtn').addEventListener('click', async () => {
+      const demoBtn = document.getElementById('demoBtn');
+      errorMsg.classList.remove('show');
+      demoBtn.disabled = true;
+      demoBtn.textContent = 'Logging in...';
+      try {
+        const data = await API.Auth.login({ email: 'demo@fitsync.com', password: 'Demo@123' });
+        saveAuth(data.token, data.user);
+        showToast('Welcome to the FitSync demo!', 'success');
+        setTimeout(() => { window.location.href = '/pages/dashboard.html'; }, 500);
+      } catch (err) {
+        showError('Demo account not available yet. Run "npm run seed" on the server.');
+        demoBtn.disabled = false;
+        demoBtn.textContent = '🧪 Login as Demo User';
+      }
+    });
+  </script>
+</body>
+</html>

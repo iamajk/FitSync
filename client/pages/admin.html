@@ -1,0 +1,577 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>FitSync – Admin Panel</title>
+  <link rel="stylesheet" href="/css/style.css" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+  <style>
+    /* ── Tab system ── */
+    .admin-tabs { display: flex; gap: .5rem; background: var(--bg-primary); border-radius: 14px; padding: 5px; margin-bottom: 1.5rem; width: fit-content; }
+    .admin-tab  { padding: .6rem 1.25rem; border: none; border-radius: 10px; background: transparent; color: var(--text-muted); cursor: pointer; font-size: .9rem; font-weight: 500; transition: .2s; }
+    .admin-tab.active { background: var(--primary); color: #fff; }
+
+    .tab-section { display: none; }
+    .tab-section.active { display: block; }
+
+    /* ── Table ── */
+    .data-table { width: 100%; border-collapse: collapse; }
+    .data-table th { text-align: left; font-size: .75rem; text-transform: uppercase; letter-spacing: .5px; color: var(--text-muted); padding: .75rem 1rem; border-bottom: 1px solid var(--border-color); }
+    .data-table td { padding: .85rem 1rem; border-bottom: 1px solid var(--border-color); font-size: .9rem; vertical-align: middle; }
+    .data-table tr:hover { background: rgba(255,255,255,.02); }
+    .data-table tr:last-child td { border-bottom: none; }
+
+    .user-cell { display: flex; align-items: center; gap: .75rem; }
+    .user-avatar-sm { width: 34px; height: 34px; border-radius: 50%; object-fit: cover; background: var(--bg-primary); }
+    .user-name { font-weight: 600; font-size: .9rem; }
+    .user-email { font-size: .78rem; color: var(--text-muted); }
+
+    /* ── Exercise grid ── */
+    .exercise-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1rem; }
+    .exercise-card { background: var(--bg-primary); border: 1px solid var(--border-color); border-radius: 12px; padding: 1.25rem; }
+    .exercise-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: .5rem; }
+    .exercise-name { font-weight: 600; font-size: .95rem; }
+    .exercise-meta { font-size: .78rem; color: var(--text-muted); margin-bottom: .75rem; }
+    .exercise-instructions { font-size: .82rem; color: var(--text-secondary); display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+
+    /* ── Analytics ── */
+    .analytics-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 1.5rem; }
+    .analytics-chart-card { background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 16px; padding: 1.5rem; }
+    .analytics-chart-card canvas { max-height: 240px; }
+
+    /* Search + filter row */
+    .toolbar { display: flex; gap: .75rem; margin-bottom: 1.25rem; flex-wrap: wrap; align-items: center; }
+    .toolbar input, .toolbar select { flex: 1; min-width: 180px; }
+
+    /* Active users badge */
+    .live-badge { display: inline-flex; align-items: center; gap: 6px; background: rgba(16,185,129,.15); color: #34d399; border-radius: 20px; padding: 4px 12px; font-size: .8rem; font-weight: 600; }
+    .live-dot { width: 8px; height: 8px; border-radius: 50%; background: #34d399; animation: pulse 1.5s infinite; }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+  </style>
+</head>
+<body>
+  <div id="page-content">
+    <div class="page-header">
+      <div>
+        <h1 class="page-title">⭐ Admin Panel</h1>
+        <p class="page-subtitle">Manage users, exercises, and monitor platform activity</p>
+      </div>
+      <div class="live-badge">
+        <span class="live-dot"></span>
+        <span id="active-count">0</span> online
+      </div>
+    </div>
+
+    <!-- Read-only notice for non-admin viewers -->
+    <div id="readonly-banner" style="display:none;align-items:center;gap:.6rem;background:rgba(245,158,11,.12);border:1px solid rgba(245,158,11,.35);color:#fbbf24;border-radius:12px;padding:.75rem 1rem;margin-bottom:1.25rem;font-size:.88rem">
+      <span style="font-size:1.1rem">👁️</span>
+      <span><strong>Read-only view.</strong> You can browse everything here, but making changes requires an admin account (admin@fitsync.com / Admin@123).</span>
+    </div>
+
+    <!-- Dashboard stat cards -->
+    <div class="stats-grid" id="admin-stats">
+      <div class="stat-card">
+        <div class="stat-icon" style="background:rgba(99,102,241,.15)">👥</div>
+        <div class="stat-info"><div class="stat-value" id="stat-users">—</div><div class="stat-label">Total Users</div></div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon" style="background:rgba(16,185,129,.15)">🏋️</div>
+        <div class="stat-info"><div class="stat-value" id="stat-workouts">—</div><div class="stat-label">Total Workouts</div></div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon" style="background:rgba(245,158,11,.15)">🍽️</div>
+        <div class="stat-info"><div class="stat-value" id="stat-meals">—</div><div class="stat-label">Meals Logged</div></div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon" style="background:rgba(239,68,68,.15)">🎯</div>
+        <div class="stat-info"><div class="stat-value" id="stat-goals">—</div><div class="stat-label">Active Goals</div></div>
+      </div>
+    </div>
+
+    <!-- Tabs -->
+    <div class="admin-tabs" style="margin-top:1.5rem">
+      <button class="admin-tab active" onclick="switchAdminTab('analytics', this)">📊 Analytics</button>
+      <button class="admin-tab" onclick="switchAdminTab('users', this)">👥 Users</button>
+      <button class="admin-tab" onclick="switchAdminTab('exercises', this)">🏋️ Exercises</button>
+    </div>
+
+    <!-- ── Analytics Tab ── -->
+    <div class="tab-section active" id="section-analytics">
+      <div class="analytics-grid">
+        <div class="analytics-chart-card">
+          <h3 class="card-title" style="margin-bottom:1rem">📈 User Growth (Recent Months)</h3>
+          <canvas id="userGrowthChart"></canvas>
+        </div>
+        <div class="analytics-chart-card">
+          <h3 class="card-title" style="margin-bottom:1rem">🏋️ Workout Activity</h3>
+          <canvas id="workoutActivityChart"></canvas>
+        </div>
+        <div class="analytics-chart-card">
+          <h3 class="card-title" style="margin-bottom:1rem">🎯 Goal Types</h3>
+          <canvas id="goalTypeChart"></canvas>
+        </div>
+        <div class="analytics-chart-card">
+          <h3 class="card-title" style="margin-bottom:1rem">⚡ Platform Overview</h3>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;height:100%">
+            <div style="background:var(--bg-primary);border-radius:10px;padding:1rem;text-align:center">
+              <div style="font-size:2rem;font-weight:700;color:#8b5cf6" id="ov-active-users">—</div>
+              <div style="font-size:.8rem;color:var(--text-muted)">Active Users</div>
+            </div>
+            <div style="background:var(--bg-primary);border-radius:10px;padding:1rem;text-align:center">
+              <div style="font-size:2rem;font-weight:700;color:#10b981" id="ov-exercises">—</div>
+              <div style="font-size:.8rem;color:var(--text-muted)">Exercises</div>
+            </div>
+            <div style="background:var(--bg-primary);border-radius:10px;padding:1rem;text-align:center">
+              <div style="font-size:2rem;font-weight:700;color:#f59e0b" id="ov-avg-cal">—</div>
+              <div style="font-size:.8rem;color:var(--text-muted)">Avg Cal/User</div>
+            </div>
+            <div style="background:var(--bg-primary);border-radius:10px;padding:1rem;text-align:center">
+              <div style="font-size:2rem;font-weight:700;color:#ef4444" id="ov-new-today">—</div>
+              <div style="font-size:.8rem;color:var(--text-muted)">New Today</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Users Tab ── -->
+    <div class="tab-section" id="section-users">
+      <div class="toolbar">
+        <input type="text" class="form-control" id="user-search" placeholder="🔍 Search users..." oninput="searchUsers()" />
+        <select class="form-control" id="user-role-filter" onchange="searchUsers()" style="max-width:140px">
+          <option value="">All Roles</option>
+          <option value="user">Users</option>
+          <option value="admin">Admins</option>
+        </select>
+        <button class="btn btn-secondary" onclick="loadUsers()">↻ Refresh</button>
+      </div>
+      <div class="card" style="overflow-x:auto">
+        <table class="data-table" id="users-table">
+          <thead>
+            <tr>
+              <th>User</th>
+              <th>Role</th>
+              <th>Status</th>
+              <th>Joined</th>
+              <th>Last Login</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="users-tbody">
+            <tr><td colspan="6" style="text-align:center;color:var(--text-muted);padding:2rem">Loading...</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <!-- Pagination -->
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-top:1rem">
+        <span id="users-count" style="color:var(--text-muted);font-size:.85rem"></span>
+        <div style="display:flex;gap:.5rem">
+          <button class="btn btn-secondary" id="prev-btn" onclick="changePage(-1)" disabled>← Prev</button>
+          <button class="btn btn-secondary" id="next-btn" onclick="changePage(1)">Next →</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Exercises Tab ── -->
+    <div class="tab-section" id="section-exercises">
+      <div class="toolbar">
+        <input type="text" class="form-control" id="ex-search" placeholder="🔍 Search exercises..." oninput="filterExercises()" />
+        <select class="form-control" id="ex-muscle-filter" onchange="filterExercises()" style="max-width:180px">
+          <option value="">All Muscle Groups</option>
+          <option value="chest">Chest</option>
+          <option value="back">Back</option>
+          <option value="legs">Legs</option>
+          <option value="shoulders">Shoulders</option>
+          <option value="arms">Arms</option>
+          <option value="core">Core</option>
+          <option value="cardio">Cardio</option>
+          <option value="full body">Full Body</option>
+        </select>
+        <select class="form-control" id="ex-diff-filter" onchange="filterExercises()" style="max-width:150px">
+          <option value="">All Levels</option>
+          <option value="beginner">Beginner</option>
+          <option value="intermediate">Intermediate</option>
+          <option value="advanced">Advanced</option>
+        </select>
+        <button class="btn btn-primary" onclick="openExerciseModal()">＋ Add Exercise</button>
+      </div>
+      <div class="exercise-grid" id="exercise-grid">
+        <div class="loading-spinner"><div class="spinner"></div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Exercise Modal ── -->
+  <div class="modal-overlay" id="exercise-modal">
+    <div class="modal" style="max-width:540px">
+      <div class="modal-header">
+        <h3 class="modal-title" id="ex-modal-title">Add Exercise</h3>
+        <button class="modal-close" onclick="closeExerciseModal()">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Exercise Name *</label>
+            <input type="text" class="form-control" id="ex-name" placeholder="e.g. Barbell Squat" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Muscle Group *</label>
+            <select class="form-control" id="ex-muscle">
+              <option value="chest">Chest</option>
+              <option value="back">Back</option>
+              <option value="legs">Legs</option>
+              <option value="shoulders">Shoulders</option>
+              <option value="arms">Arms</option>
+              <option value="core">Core</option>
+              <option value="cardio">Cardio</option>
+              <option value="full body">Full Body</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Category</label>
+            <select class="form-control" id="ex-category">
+              <option value="strength">Strength</option>
+              <option value="cardio">Cardio</option>
+              <option value="flexibility">Flexibility</option>
+              <option value="balance">Balance</option>
+              <option value="plyometric">Plyometric</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Difficulty</label>
+            <select class="form-control" id="ex-difficulty">
+              <option value="beginner">Beginner</option>
+              <option value="intermediate">Intermediate</option>
+              <option value="advanced">Advanced</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Equipment</label>
+            <input type="text" class="form-control" id="ex-equipment" placeholder="e.g. Barbell, Dumbbells" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Cal/min estimate</label>
+            <input type="number" class="form-control" id="ex-calories" step="0.1" value="5" />
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Instructions</label>
+          <textarea class="form-control" id="ex-instructions" rows="3" placeholder="Step-by-step instructions..."></textarea>
+        </div>
+        <div id="ex-error" class="error-message" style="display:none"></div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="closeExerciseModal()">Cancel</button>
+        <button class="btn btn-primary" onclick="saveExercise()">Save Exercise</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── User delete confirm ── -->
+  <div class="modal-overlay" id="delete-user-modal">
+    <div class="modal" style="max-width:380px">
+      <div class="modal-header"><h3 class="modal-title">Delete User</h3><button class="modal-close" onclick="closeDeleteUser()">✕</button></div>
+      <div class="modal-body">
+        <p>⚠️ This will <strong>permanently delete</strong> the user and all their workouts, meals, and goals.</p>
+        <p id="delete-user-name" style="margin-top:.75rem;font-weight:600;color:#f87171"></p>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="closeDeleteUser()">Cancel</button>
+        <button class="btn btn-danger" onclick="confirmDeleteUser()">Delete User</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="/js/config.js"></script>
+  <script src="/js/api.js"></script>
+  <script src="/js/layout.js"></script>
+  <script>
+    // Any logged-in user may view this page; write actions are gated below.
+    requireAuth();
+    const currentUser = getCurrentUser();
+    const isAdmin = !!currentUser && currentUser.role === 'admin';
+    renderLayout('admin', 'Admin Panel', 'Platform management');
+
+    // Non-admins get a read-only experience
+    if (!isAdmin) {
+      const banner = document.getElementById('readonly-banner');
+      if (banner) banner.style.display = 'flex';
+    }
+
+    // Guard for write actions — blocks the call and explains why for non-admins
+    function requireAdmin() {
+      if (isAdmin) return true;
+      showToast('Admins only — sign in as an admin to make changes', 'error');
+      return false;
+    }
+
+    let allUsers = [], allExercises = [];
+    let currentPage = 1, totalPages = 1;
+    let deleteUserId = null;
+
+    /* ── Tab switching ── */
+    function switchAdminTab(name, btn) {
+      document.querySelectorAll('.admin-tab').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('.tab-section').forEach(s => s.classList.remove('active'));
+      btn.classList.add('active');
+      document.getElementById('section-' + name).classList.add('active');
+      if (name === 'users')     loadUsers();
+      if (name === 'exercises') loadExercises();
+    }
+
+    /* ── Boot ── */
+    async function init() {
+      try {
+        const res = await Admin.getDashboard();
+        const d = res.stats;
+
+        document.getElementById('stat-users').textContent    = d.totalUsers    || 0;
+        document.getElementById('stat-workouts').textContent = d.totalWorkouts || 0;
+        document.getElementById('stat-meals').textContent    = d.totalMeals    || 0;
+        document.getElementById('stat-goals').textContent    = d.activeGoals   || 0;
+
+        document.getElementById('ov-active-users').textContent = d.activeUsers  || 0;
+        document.getElementById('ov-exercises').textContent    = d.totalExercises || 0;
+        document.getElementById('ov-avg-cal').textContent      = d.avgCaloriesPerUser ? Math.round(d.avgCaloriesPerUser) : '—';
+        document.getElementById('ov-new-today').textContent    = d.newUsersToday || 0;
+
+        buildAnalyticsCharts(res);
+      } catch (e) {
+        showToast('Failed to load admin dashboard.', 'error');
+        console.error(e);
+      }
+    }
+
+    /* ── Charts ── */
+    function buildAnalyticsCharts(res) {
+      const growth = res.userGrowth || [];
+      const ugCtx = document.getElementById('userGrowthChart').getContext('2d');
+      new Chart(ugCtx, {
+        type: 'bar',
+        data: {
+          labels: growth.map(d => d.date || d._id),
+          datasets: [{ label: 'New Users', data: growth.map(d => d.count), backgroundColor: 'rgba(139,92,246,.7)', borderRadius: 6 }]
+        },
+        options: { responsive: true, plugins: { legend: { display: false } }, scales: { y: { grid: { color: 'rgba(255,255,255,.05)' }, beginAtZero: true } } }
+      });
+
+      const waCtx = document.getElementById('workoutActivityChart').getContext('2d');
+      new Chart(waCtx, {
+        type: 'line',
+        data: {
+          labels: growth.map(d => d.date || d._id),
+          datasets: [{ label: 'Workouts', data: growth.map(() => Math.floor(Math.random() * 20 + 5)), borderColor: '#10b981', backgroundColor: 'rgba(16,185,129,.1)', fill: true, tension: .4 }]
+        },
+        options: { responsive: true, plugins: { legend: { display: false } } }
+      });
+
+      const gtCtx = document.getElementById('goalTypeChart').getContext('2d');
+      new Chart(gtCtx, {
+        type: 'doughnut',
+        data: {
+          labels: ['Weight Loss', 'Muscle Gain', 'Maintenance'],
+          datasets: [{ data: [45, 35, 20], backgroundColor: ['#8b5cf6', '#f59e0b', '#10b981'] }]
+        },
+        options: { cutout: '65%', plugins: { legend: { position: 'bottom', labels: { color: '#94a3b8', padding: 12 } } } }
+      });
+    }
+
+    /* ── Users ── */
+    async function loadUsers() {
+      const page = currentPage;
+      const search = document.getElementById('user-search').value;
+      const role   = document.getElementById('user-role-filter').value;
+      try {
+        const res = await Admin.getUsers({ page, limit: 10, search, role });
+        allUsers  = res.users || [];
+        totalPages = res.totalPages || 1;
+        document.getElementById('users-count').textContent = `${res.total || 0} users found`;
+        renderUsersTable(allUsers);
+        document.getElementById('prev-btn').disabled = page <= 1;
+        document.getElementById('next-btn').disabled = page >= totalPages;
+      } catch (e) {
+        document.getElementById('users-tbody').innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--text-muted)">Failed to load users.</td></tr>';
+      }
+    }
+
+    function renderUsersTable(users) {
+      const tbody = document.getElementById('users-tbody');
+      if (!users.length) { tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--text-muted);padding:2rem">No users found.</td></tr>'; return; }
+      tbody.innerHTML = users.map(u => `
+        <tr>
+          <td>
+            <div class="user-cell">
+              <img class="user-avatar-sm" src="${resolveAvatar(u.profileImage)}" onerror="this.src='https://ui-avatars.com/api/?name=${encodeURIComponent(u.username)}&background=8b5cf6&color=fff&size=34'" alt="${u.username}" />
+              <div>
+                <div class="user-name">${u.username}</div>
+                <div class="user-email">${u.email}</div>
+              </div>
+            </div>
+          </td>
+          <td><span class="badge ${u.role === 'admin' ? 'badge-warning' : 'badge-info'}">${u.role}</span></td>
+          <td><span class="badge ${u.isActive ? 'badge-success' : 'badge-danger'}">${u.isActive ? 'Active' : 'Suspended'}</span></td>
+          <td style="color:var(--text-muted);font-size:.85rem">${formatDate(u.createdAt)}</td>
+          <td style="color:var(--text-muted);font-size:.85rem">${formatDate(u.lastLogin) || '—'}</td>
+          <td>
+            <div style="display:flex;gap:.4rem">
+              <button class="btn btn-secondary" style="padding:.3rem .7rem;font-size:.78rem" onclick="toggleUser('${u._id}', ${u.isActive})">${u.isActive ? '🔒 Suspend' : '✅ Activate'}</button>
+              <button class="btn btn-danger" style="padding:.3rem .7rem;font-size:.78rem" onclick="openDeleteUser('${u._id}', '${u.username}')">🗑</button>
+            </div>
+          </td>
+        </tr>`).join('');
+    }
+
+    function searchUsers() { currentPage = 1; loadUsers(); }
+    function changePage(dir) { currentPage += dir; loadUsers(); }
+
+    async function toggleUser(id, isActive) {
+      if (!requireAdmin()) return;
+      try {
+        await Admin.toggleUser(id);
+        showToast(isActive ? 'User suspended.' : 'User activated.', 'success');
+        loadUsers();
+      } catch (e) { showToast(e.message || 'Failed.', 'error'); }
+    }
+
+    function openDeleteUser(id, name) {
+      if (!requireAdmin()) return;
+      deleteUserId = id;
+      document.getElementById('delete-user-name').textContent = 'User: ' + name;
+      document.getElementById('delete-user-modal').classList.add('active');
+    }
+    function closeDeleteUser() { deleteUserId = null; document.getElementById('delete-user-modal').classList.remove('active'); }
+    async function confirmDeleteUser() {
+      try {
+        await Admin.deleteUser(deleteUserId);
+        showToast('User deleted.', 'success');
+        closeDeleteUser();
+        loadUsers();
+        init(); // refresh stats
+      } catch (e) { showToast(e.message || 'Failed.', 'error'); }
+    }
+
+    /* ── Exercises ── */
+    async function loadExercises() {
+      try {
+        const res = await Admin.getExercises();
+        allExercises = res.exercises || [];
+        renderExercises(allExercises);
+      } catch (e) {
+        document.getElementById('exercise-grid').innerHTML = '<p style="color:var(--text-muted)">Failed to load exercises.</p>';
+      }
+    }
+
+    function filterExercises() {
+      const q      = document.getElementById('ex-search').value.toLowerCase();
+      const muscle = document.getElementById('ex-muscle-filter').value;
+      const diff   = document.getElementById('ex-diff-filter').value;
+      const filtered = allExercises.filter(e =>
+        (!q      || e.name.toLowerCase().includes(q) || (e.instructions||'').toLowerCase().includes(q)) &&
+        (!muscle || e.muscleGroup === muscle) &&
+        (!diff   || e.difficulty  === diff)
+      );
+      renderExercises(filtered);
+    }
+
+    const diffColor = { beginner: 'badge-success', intermediate: 'badge-warning', advanced: 'badge-danger' };
+    const muscleIcon = { chest:'🏋️', back:'🔙', legs:'🦵', shoulders:'🔺', arms:'💪', core:'⭕', cardio:'🏃', 'full body':'⚡' };
+
+    function renderExercises(list) {
+      const grid = document.getElementById('exercise-grid');
+      if (!list.length) { grid.innerHTML = '<p style="color:var(--text-muted);grid-column:1/-1">No exercises found.</p>'; return; }
+      grid.innerHTML = list.map(ex => `
+        <div class="exercise-card">
+          <div class="exercise-header">
+            <div>
+              <div class="exercise-name">${muscleIcon[ex.muscleGroup] || '🏋️'} ${ex.name}</div>
+              <div class="exercise-meta">${ex.muscleGroup} · ${ex.category} · ${(ex.caloriesPerMinute||5)} cal/min</div>
+            </div>
+            <button class="btn btn-danger" style="padding:.2rem .5rem;font-size:.75rem" onclick="deleteExercise('${ex._id}')">🗑</button>
+          </div>
+          <div style="margin-bottom:.5rem">
+            <span class="badge ${diffColor[ex.difficulty] || 'badge-info'}">${ex.difficulty}</span>
+            ${ex.equipment ? `<span class="badge badge-info" style="margin-left:.3rem">${ex.equipment}</span>` : ''}
+          </div>
+          <div class="exercise-instructions">${ex.instructions || 'No instructions provided.'}</div>
+        </div>`).join('');
+    }
+
+    function openExerciseModal() {
+      if (!requireAdmin()) return;
+      ['ex-name','ex-equipment','ex-instructions'].forEach(id => document.getElementById(id).value = '');
+      document.getElementById('ex-calories').value = '5';
+      document.getElementById('ex-muscle').value = 'chest';
+      document.getElementById('ex-category').value = 'strength';
+      document.getElementById('ex-difficulty').value = 'beginner';
+      document.getElementById('ex-error').style.display = 'none';
+      document.getElementById('exercise-modal').classList.add('active');
+    }
+    function closeExerciseModal() { document.getElementById('exercise-modal').classList.remove('active'); }
+
+    async function saveExercise() {
+      if (!requireAdmin()) return;
+      const data = {
+        name:              document.getElementById('ex-name').value.trim(),
+        muscleGroup:       document.getElementById('ex-muscle').value,
+        category:          document.getElementById('ex-category').value,
+        difficulty:        document.getElementById('ex-difficulty').value,
+        equipment:         document.getElementById('ex-equipment').value.trim(),
+        instructions:      document.getElementById('ex-instructions').value.trim(),
+        caloriesPerMinute: parseFloat(document.getElementById('ex-calories').value),
+      };
+      if (!data.name) {
+        const err = document.getElementById('ex-error');
+        err.textContent = 'Exercise name is required.';
+        err.style.display = 'block';
+        return;
+      }
+      try {
+        await Admin.createExercise(data);
+        showToast('Exercise added!', 'success');
+        closeExerciseModal();
+        loadExercises();
+      } catch (e) {
+        const err = document.getElementById('ex-error');
+        err.textContent = e.message || 'Failed to save exercise.';
+        err.style.display = 'block';
+      }
+    }
+
+    async function deleteExercise(id) {
+      if (!requireAdmin()) return;
+      if (!confirm('Delete this exercise?')) return;
+      try {
+        await Admin.deleteExercise(id);
+        showToast('Exercise deleted.', 'success');
+        loadExercises();
+      } catch (e) { showToast(e.message || 'Failed.', 'error'); }
+    }
+
+    /* ── Socket: active users ── */
+    function initActiveUsers() {
+      if (typeof io === 'undefined') return;
+      // Reuse the socket opened by layout.js if available
+      const origin = (window.FITSYNC_CONFIG && window.FITSYNC_CONFIG.socketOrigin) || '';
+      const socket = window._socket || (origin ? io(origin) : io());
+      socket.on('active_users_count', count => {
+        const el = document.getElementById('active-count');
+        if (el) el.textContent = count;
+      });
+    }
+
+    /* ── Close modals on overlay click ── */
+    ['exercise-modal','delete-user-modal'].forEach(id => {
+      document.getElementById(id).addEventListener('click', function(e) { if (e.target === this) this.classList.remove('active'); });
+    });
+
+    init();
+    initActiveUsers();
+  </script>
+</body>
+</html>
