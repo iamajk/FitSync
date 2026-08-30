@@ -9,11 +9,25 @@ async function request(endpoint, options = {}) {
   const headers = { 'Content-Type': 'application/json', ...(options.headers || {}) };
   if (token) headers.Authorization = 'Bearer ' + token;
 
-  const res = await fetch(API_BASE + endpoint, { ...options, headers });
+  let res;
+  try {
+    res = await fetch(API_BASE + endpoint, { ...options, headers });
+  } catch (netErr) {
+    throw new Error('Cannot reach the API. Is the backend running? (' + API_BASE + ')');
+  }
 
   // Some endpoints (e.g. 204) may have no body
+  const ct = res.headers.get('content-type') || '';
   let data = {};
-  try { data = await res.json(); } catch (_) { /* no JSON body */ }
+  if (ct.includes('application/json')) {
+    try { data = await res.json(); } catch (_) { /* empty / bad JSON */ }
+  } else if (!res.ok) {
+    // Non-JSON error = we hit the static host / a proxy, not the API
+    throw new Error(
+      `API not reachable (HTTP ${res.status}). The frontend is deployed but the backend isn't wired up — ` +
+      `set window.FITSYNC_API_ORIGIN in client/js/config.js to your API URL.`
+    );
+  }
   if (res.status === 401) {
     localStorage.removeItem('fitsync_token');
     localStorage.removeItem('fitsync_user');

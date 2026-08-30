@@ -7,6 +7,7 @@
 #
 #   window.FITSYNC_API_ORIGIN = "https://your-api.onrender.com";
 #
+# Until that's set, every /api call fails — the app needs the backend.
 # ─────────────────────────────────────────────────────────────
 
 [build]
@@ -14,9 +15,11 @@
   publish = "client"
   command = "echo 'No build needed — static site'"
 
-# Optional: proxy REST calls through Netlify so the browser sees a
-# same-origin /api and you don't need CORS. Uncomment and set your API URL.
-# (Socket.IO still connects directly to the API origin — set that in config.js.)
+# ── Option: proxy REST through Netlify instead of editing config.js ──
+# Uncomment, set your API URL, and leave client/js/config.js untouched.
+# The browser then calls a same-origin /api and CORS is not involved.
+# (Socket.IO real-time won't proxy this way — set socketOrigin in
+#  config.js if you want live updates, or leave it off.)
 #
 # [[redirects]]
 #   from = "/api/*"
@@ -24,11 +27,10 @@
 #   status = 200
 #   force = true
 
-# SPA-style fallback: unknown deep links resolve to the landing page.
-[[redirects]]
-  from = "/*"
-  to = "/index.html"
-  status = 200
+# NOTE: no catch-all SPA redirect. This is a multi-page site — every real
+# route is a real .html file, and Netlify already serves extensionless
+# URLs (/pages/login -> /pages/login.html). A greedy /* -> /index.html
+# rule would swallow /api/* requests and hide backend misconfiguration.
 
 [[headers]]
   for = "/*"
